@@ -1,5 +1,7 @@
 # LinkTK
 
+[![CI](https://github.com/zhuqinsheng-git/LinkTK/actions/workflows/ci.yml/badge.svg)](https://github.com/zhuqinsheng-git/LinkTK/actions/workflows/ci.yml)
+
 [简体中文](README.zh-CN.md) | English
 
 LinkTK is a browser-based serial and network debugging console built on the Web Serial API. It picks a COM port through the Edge/Chrome system chooser and provides text/HEX send and receive, timestamps, follow mode, log saving, and timed send. The interface is English by default and can be switched to Simplified Chinese from the top bar.

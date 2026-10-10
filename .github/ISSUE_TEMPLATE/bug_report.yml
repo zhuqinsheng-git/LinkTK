@@ -1,0 +1,58 @@
+name: Bug report
+description: Something is not working as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill in as much detail as you can.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps that trigger the problem. Mention whether the AI control channel was involved.
+    validations:
+      required: true
+  - type: dropdown
+    id: workspace
+    attributes:
+      label: Workspace
+      options:
+        - Serial
+        - Network (TCP/UDP)
+        - Serial-to-network bridge
+        - SSH / SFTP
+        - YMODEM
+        - Terminal
+        - AI control channel (Agent CLI / MCP)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Release tag (for example v1.0.0) or commit hash.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, browser (Edge/Chrome and version), Node.js version, and any device or board involved (chip, firmware, connection type).
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and screenshots
+      description: Browser console output, terminal output, or screenshots. Remove passwords, keys, and tokens before posting.
+    validations:
+      required: false

@@ -1,5 +1,7 @@
 # LinkTK
 
+[![CI](https://github.com/zhuqinsheng-git/LinkTK/actions/workflows/ci.yml/badge.svg)](https://github.com/zhuqinsheng-git/LinkTK/actions/workflows/ci.yml)
+
 [English](README.md) | 简体中文
 
 LinkTK 是一个基于 Web Serial API 的浏览器串口与网络调试工具。支持在 Edge/Chrome 的系统串口选择器中选择 COM 口，并提供文本/HEX 收发、时间戳、自动滚动、日志保存和自动发送。界面默认英文，可在顶栏一键切换简体中文。
