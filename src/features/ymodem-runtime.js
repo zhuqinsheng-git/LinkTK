@@ -9,6 +9,7 @@ import { errorMessage } from "../core/errors.js";
 import { t } from "../core/i18n.js";
 import { state } from "../core/state.js";
 import { formatBytes } from "../lib/format.js";
+import { downloadBlob } from "../lib/download.js";
 import { stopBridge } from "./bridge.js";
 import { stopMacroPlayback, stopMacroRecording } from "./macro.js";
 import { sendPayload } from "./serial-runtime.js";
@@ -151,14 +152,7 @@ async function startYmodemReceive() {
     "info",
   );
   const blob = new Blob([result.data], { type: "application/octet-stream" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = result.filename;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, result.filename);
   showToast(t("ymodem.toast.receiveDone", { filename: result.filename }), "success");
 }
 

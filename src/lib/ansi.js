@@ -197,4 +197,4 @@ function parseAnsiText(input, initialState = createAnsiStyle()) {
   };
 }
 
-export { ANSI_COLORS, ansi256Color, applySgrCodes, createAnsiStyle, parseAnsiText };
+export { createAnsiStyle, parseAnsiText };

@@ -9,7 +9,7 @@ import {
   resolve as resolveLocalPath,
 } from "node:path";
 import ssh2 from "ssh2";
-import { WebSocketServer } from "ws";
+import { attachWebSocketBridge } from "./bridge-attach.js";
 
 const { Client } = ssh2;
 const { STATUS_CODE } = ssh2.utils.sftp;
@@ -76,27 +76,6 @@ function normalizeRemotePath(value) {
 
   if (absolute) return parts.length ? `/${parts.join("/")}` : "/";
   return parts.length ? parts.join("/") : ".";
-}
-
-function parentRemotePath(value) {
-  const path = normalizeRemotePath(value);
-  if (path === "/") return path;
-  const absolute = path.startsWith("/");
-  const parts = path.split("/").filter(Boolean);
-  parts.pop();
-  if (absolute) return `/${parts.join("/")}` || "/";
-  return parts.join("/") || ".";
-}
-
-function joinRemotePath(base, name) {
-  const normalized = normalizeRemotePath(base);
-  const cleanName = normalizeRemotePath(name).split("/").filter(Boolean).at(-1);
-  if (!cleanName || cleanName === "." || cleanName === "..") {
-    throw new Error("File name must not be empty.");
-  }
-  if (normalized === ".") return cleanName;
-  if (normalized === "/") return `/${cleanName}`;
-  return `${normalized}/${cleanName}`;
 }
 
 function isDirectoryMode(mode) {
@@ -1326,42 +1305,14 @@ class SshBridge {
   }
 
   attach(httpServer) {
-    if (!httpServer || this.servers.has(httpServer)) return;
-
-    const webSocketServer = new WebSocketServer({
-      noServer: true,
+    attachWebSocketBridge(httpServer, {
+      sessions: this.sessions,
+      servers: this.servers,
+      path: SSH_PATH,
+      createSession: (socket) => new SshSession(socket),
+      readyType: "ssh:ready",
       maxPayload: 2 * 1024 * 1024,
     });
-    const onUpgrade = (request, socket, head) => {
-      const pathname = new URL(request.url, "http://127.0.0.1").pathname;
-      if (pathname !== SSH_PATH) return;
-      webSocketServer.handleUpgrade(request, socket, head, (webSocket) => {
-        webSocketServer.emit("connection", webSocket, request);
-      });
-    };
-
-    httpServer.on("upgrade", onUpgrade);
-    webSocketServer.on("connection", (socket) => {
-      const session = new SshSession(socket);
-      this.sessions.add(session);
-      socket.send(JSON.stringify({ type: "ssh:ready" }));
-      socket.on("message", (message) => void session.handle(message));
-      socket.on("close", () => {
-        this.sessions.delete(session);
-        void session.dispose();
-      });
-      socket.on("error", () => {});
-    });
-
-    httpServer.once("close", () => {
-      this.servers.delete(httpServer);
-      httpServer.off("upgrade", onUpgrade);
-      webSocketServer.close();
-      this.sessions.forEach((session) => void session.dispose());
-      this.sessions.clear();
-    });
-
-    this.servers.add(httpServer);
   }
 }
 

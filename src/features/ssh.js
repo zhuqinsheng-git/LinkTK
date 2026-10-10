@@ -7,11 +7,13 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import { Folder, Plus, X, createIcons } from "lucide";
 import { MAX_CONNECTION_PRESETS, MAX_SSH_QUICK_PATHS } from "../core/constants.js";
-import { $, $$, els } from "../core/dom.js";
+import { $, $$, createLucideIcon, els } from "../core/dom.js";
 import { errorMessage } from "../core/errors.js";
 import { getLocale, t, tCount } from "../core/i18n.js";
 import { persistSettings } from "../core/settings.js";
 import { state } from "../core/state.js";
+import { TERMINAL_THEME } from "../core/terminal-theme.js";
+import { downloadBlob } from "../lib/download.js";
 import { formatBytes } from "../lib/format.js";
 import { formatSshFileSize, formatSshFileTime, joinSshPath, normalizeSshPath, parentSshPath } from "../lib/ssh-path.js";
 import { recordSshTraffic } from "./log-view.js";
@@ -32,29 +34,7 @@ function initializeSshTerminal() {
     screenReaderMode: true,
     scrollback: 12000,
     smoothScrollDuration: 80,
-    theme: {
-      background: "#173a5e",
-      foreground: "#f5f5f5",
-      cursor: "#9dbb4e",
-      cursorAccent: "#173a5e",
-      selectionBackground: "#566b83",
-      black: "#183047",
-      red: "#c75f59",
-      green: "#9dbb4e",
-      yellow: "#d7b35f",
-      blue: "#78a9d4",
-      magenta: "#b98ac7",
-      cyan: "#57a7a4",
-      white: "#f5f5f5",
-      brightBlack: "#8c8c8c",
-      brightRed: "#df7b74",
-      brightGreen: "#c3dc7c",
-      brightYellow: "#ebcb7e",
-      brightBlue: "#8fc1eb",
-      brightMagenta: "#d0a5e2",
-      brightCyan: "#7fd0cd",
-      brightWhite: "#ffffff",
-    },
+    theme: TERMINAL_THEME,
   });
   const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
@@ -205,9 +185,7 @@ function renderSshQuickPaths() {
     openButton.className = "ssh-file-place-open";
     openButton.title = path;
 
-    const folderIcon = document.createElement("i");
-    folderIcon.dataset.lucide = "folder";
-    folderIcon.setAttribute("aria-hidden", "true");
+    const folderIcon = createLucideIcon("folder");
     const label = document.createElement("span");
     label.textContent = path;
     openButton.append(folderIcon, label);
@@ -217,9 +195,7 @@ function renderSshQuickPaths() {
     deleteButton.className = "ssh-file-place-delete";
     deleteButton.title = t("ssh.file.removePlace", { path });
     deleteButton.setAttribute("aria-label", deleteButton.title);
-    const closeIcon = document.createElement("i");
-    closeIcon.dataset.lucide = "x";
-    closeIcon.setAttribute("aria-hidden", "true");
+    const closeIcon = createLucideIcon("x");
     deleteButton.append(closeIcon);
 
     item.append(openButton, deleteButton);
@@ -406,17 +382,6 @@ function closeSshFileDialog({ force = false } = {}) {
   if (els.sshFileDialog.open) els.sshFileDialog.close();
 }
 
-function downloadBlobFile(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
-}
-
 function beginSshFileTransfer(label) {
   const controller = new AbortController();
   state.sshFileAbortController = controller;
@@ -496,7 +461,7 @@ async function downloadSelectedSshFile() {
         });
       },
     });
-    downloadBlobFile(result.blob, result.name);
+    downloadBlob(result.blob, result.name);
     showToast(t("ssh.file.downloadDone", { name: result.name }), "success");
   } catch (error) {
     if (error?.name === "AbortError") {
@@ -571,4 +536,4 @@ async function deleteSelectedSshEntry() {
   }
 }
 
-export { beginSshFileTransfer, closeSshFileDialog, createSshDirectory, deleteSelectedSshEntry, downloadBlobFile, downloadSelectedSshFile, finishSshFileTransfer, fitSshTerminal, getActiveSshPreset, initializeSshTerminal, loadSshDirectory, normalizeSshPresets, normalizeSshQuickPaths, openSshFileDialog, readSshConfig, renameSelectedSshEntry, renderSshFileList, renderSshPresets, renderSshQuickPaths, selectSshFile, setSshFileBusy, sshFileSelectedEntry, sshPresetsLocked, updateSshFileControls, updateSshFileProgress, updateSshPresetControls, uploadSshFiles };
+export { beginSshFileTransfer, closeSshFileDialog, createSshDirectory, deleteSelectedSshEntry, downloadSelectedSshFile, finishSshFileTransfer, fitSshTerminal, getActiveSshPreset, initializeSshTerminal, loadSshDirectory, normalizeSshPresets, normalizeSshQuickPaths, openSshFileDialog, readSshConfig, renameSelectedSshEntry, renderSshFileList, renderSshPresets, renderSshQuickPaths, selectSshFile, setSshFileBusy, sshFileSelectedEntry, sshPresetsLocked, updateSshFileControls, updateSshFileProgress, updateSshPresetControls, uploadSshFiles };

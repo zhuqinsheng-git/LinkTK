@@ -1,6 +1,6 @@
 import dgram from "node:dgram";
 import net from "node:net";
-import { WebSocketServer } from "ws";
+import { attachWebSocketBridge } from "./bridge-attach.js";
 
 const NETWORK_PATH = "/__network";
 const OPEN = 1;
@@ -347,40 +347,13 @@ class NetworkBridge {
   }
 
   attach(httpServer) {
-    if (!httpServer || this.servers.has(httpServer)) return;
-
-    const webSocketServer = new WebSocketServer({ noServer: true });
-    const onUpgrade = (request, socket, head) => {
-      const pathname = new URL(request.url, "http://127.0.0.1").pathname;
-      if (pathname !== NETWORK_PATH) return;
-
-      webSocketServer.handleUpgrade(request, socket, head, (webSocket) => {
-        webSocketServer.emit("connection", webSocket, request);
-      });
-    };
-
-    httpServer.on("upgrade", onUpgrade);
-    webSocketServer.on("connection", (socket) => {
-      const session = new NetworkSession(socket);
-      this.sessions.add(session);
-      socket.send(JSON.stringify({ type: "network:ready" }));
-      socket.on("message", (message) => void session.handle(message));
-      socket.on("close", () => {
-        this.sessions.delete(session);
-        void session.dispose();
-      });
-      socket.on("error", () => {});
+    attachWebSocketBridge(httpServer, {
+      sessions: this.sessions,
+      servers: this.servers,
+      path: NETWORK_PATH,
+      createSession: (socket) => new NetworkSession(socket),
+      readyType: "network:ready",
     });
-
-    httpServer.once("close", () => {
-      this.servers.delete(httpServer);
-      httpServer.off("upgrade", onUpgrade);
-      webSocketServer.close();
-      this.sessions.forEach((session) => void session.dispose());
-      this.sessions.clear();
-    });
-
-    this.servers.add(httpServer);
   }
 }
 

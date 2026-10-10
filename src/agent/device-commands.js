@@ -10,6 +10,7 @@ import { persistSettings } from "../core/settings.js";
 import { state } from "../core/state.js";
 import { bytesToHex } from "../lib/format.js";
 import { base64ToBytes, bytesToBase64 } from "../lib/encoding.js";
+import { downloadBlob } from "../lib/download.js";
 import { getAgentStatusSnapshot, getAgentPortName } from "./runtime.js";
 import { buildAgentPayload } from "./events.js";
 import { getBridgeAgentStatus, getNetworkPresetForAgent, getSerialPresetForAgent, getSshPresetForAgent, resolveSerialPortForAgent, waitForAgentSshConnection, waitForNetworkAgentConnection } from "./commands.js";
@@ -262,14 +263,7 @@ async function receiveYmodemForAgent(params = {}, context = {}) {
 
 function triggerYmodemDownload(filename, data) {
   const blob = new Blob([data], { type: "application/octet-stream" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename || "received.bin";
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, filename || "received.bin");
 }
 
 async function connectSshPresetForAgent(params = {}) {

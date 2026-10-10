@@ -10,6 +10,7 @@ import {
   validateAgentToken,
 } from "./agent-auth.js";
 import { isReadOnlyAgentTransfer } from "../shared/agent-command-policy.js";
+import { AGENT_READ_COMMANDS } from "../src/core/constants.js";
 
 const BROWSER_PATH = "/__agent";
 const CONTROL_PATH = "/__agent-control";
@@ -19,38 +20,6 @@ const DEFAULT_TIMEOUT_MS = 120000;
 const MAX_TIMEOUT_MS = 30 * 60 * 1000;
 const DEFAULT_LEASE_MS = 5 * 60 * 1000;
 const MAX_LEASE_MS = 30 * 60 * 1000;
-const READ_ONLY_COMMANDS = new Set([
-  "status",
-  "snapshot",
-  "read",
-  "wait",
-  "network_status",
-  "network_presets",
-  "network_read",
-  "network_wait",
-  "serial_status",
-  "serial_ports",
-  "serial_presets",
-  "ssh_status",
-  "ssh_presets",
-  "ssh_read",
-  "ssh_wait",
-  "sftp_list",
-  "sftp_download",
-  "sftp_download_to_file",
-  "sftp_download_open",
-  "sftp_download_chunk",
-  "sftp_download_close",
-  "ymodem_status",
-  "macro_list",
-  "bridge_status",
-  "operation_status",
-  "operation_list",
-  "transaction_list",
-  "task_template_list",
-  "device_profile_list",
-  "evidence_get",
-]);
 
 function sendMessage(socket, message) {
   if (socket?.readyState === WebSocket.OPEN) {
@@ -602,7 +571,7 @@ class AgentBridge {
     const readOnlyCommand =
       command === "sftp_download_to_file"
         ? isReadOnlyAgentTransfer(command, message.params || {})
-        : READ_ONLY_COMMANDS.has(command);
+        : AGENT_READ_COMMANDS.has(command);
     if (
       lease &&
       lease.mode === "exclusive" &&

@@ -7,6 +7,7 @@ import { els } from "../core/dom.js";
 import { errorMessage } from "../core/errors.js";
 import { t } from "../core/i18n.js";
 import { persistAgentSessionLabel, state } from "../core/state.js";
+import { downloadBlob } from "../lib/download.js";
 import { copyTextToClipboard } from "../features/log-view.js";
 import { showToast } from "../features/toast.js";
 import { createTaskFromAgentOperation, deleteDeviceProfileForAgent, deleteTaskTemplateForAgent, getAgentEvidenceForOperation, selectDeviceProfileForAgent, upsertDeviceProfileForAgent } from "./catalog.js";
@@ -187,14 +188,7 @@ function downloadJsonFile(filename, value) {
   const blob = new Blob([JSON.stringify(value, null, 2)], {
     type: "application/json;charset=utf-8",
   });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, filename);
 }
 
 function showAgentEvidence(operationId) {

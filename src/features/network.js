@@ -9,6 +9,7 @@ import { errorMessage } from "../core/errors.js";
 import { formatNumber, t, tCount } from "../core/i18n.js";
 import { state } from "../core/state.js";
 import { appendHexText, bytesToAscii, bytesToHex, formatBytes, formatRate } from "../lib/format.js";
+import { downloadBlob } from "../lib/download.js";
 import { queueAutoSaveChunk } from "./autosave.js";
 import { applyKeywordHighlight, createEntryContent, formatTimestamp, joinLogEntries, recordNetworkAgentTraffic, renderEntryData, resetAgentTrafficDecoders, splitSegmentsByLine, updateKeywordEntryVisibility } from "./log-view.js";
 import { buildNetworkPayload, normalizeAutoSendCount } from "./payload.js";
@@ -501,14 +502,7 @@ function saveNetworkLog() {
     .replace(/\..+/, "")
     .replace("T", "-");
   const blob = new Blob(["\ufeff", content], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `network-log-${timestamp}.txt`;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, `network-log-${timestamp}.txt`);
   showToast(t("net.toast.logSaved"), "success");
 }
 

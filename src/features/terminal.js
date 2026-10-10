@@ -10,6 +10,7 @@ import { textEncoder } from "../core/constants.js";
 import { els, hasExternalTextEntryFocus } from "../core/dom.js";
 import { t } from "../core/i18n.js";
 import { state } from "../core/state.js";
+import { TERMINAL_THEME } from "../core/terminal-theme.js";
 import { recordTerminalMacroInput } from "./macro.js";
 
 let serialInputSender = null;
@@ -35,29 +36,7 @@ function initializeTerminal({ sendSerialPayload } = {}) {
     lineHeight: 1.3,
     scrollback: 12000,
     smoothScrollDuration: 80,
-    theme: {
-      background: "#173a5e",
-      foreground: "#f5f5f5",
-      cursor: "#9dbb4e",
-      cursorAccent: "#173a5e",
-      selectionBackground: "#566b83",
-      black: "#183047",
-      red: "#c75f59",
-      green: "#9dbb4e",
-      yellow: "#d7b35f",
-      blue: "#78a9d4",
-      magenta: "#b98ac7",
-      cyan: "#57a7a4",
-      white: "#f5f5f5",
-      brightBlack: "#8c8c8c",
-      brightRed: "#df7b74",
-      brightGreen: "#c3dc7c",
-      brightYellow: "#ebcb7e",
-      brightBlue: "#8fc1eb",
-      brightMagenta: "#d0a5e2",
-      brightCyan: "#7fd0cd",
-      brightWhite: "#ffffff",
-    },
+    theme: TERMINAL_THEME,
   });
   const fitAddon = new FitAddon();
   const searchAddon = new SearchAddon({ highlightLimit: 1000 });

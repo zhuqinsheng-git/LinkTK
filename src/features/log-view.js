@@ -10,6 +10,7 @@ import { persistSettings } from "../core/settings.js";
 import { state } from "../core/state.js";
 import { appendHexText, bytesToAscii, bytesToHex, formatBytes, formatClockTime, formatRate } from "../lib/format.js";
 import { createAnsiStyle, parseAnsiText } from "../lib/ansi.js";
+import { downloadBlob } from "../lib/download.js";
 import { queueAutoSaveChunk } from "./autosave.js";
 import { showToast } from "./toast.js";
 
@@ -801,14 +802,7 @@ function saveLog() {
     .replace("T", "-");
 
   const blob = new Blob(["\ufeff", content], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `serial-log-${timestamp}.txt`;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, `serial-log-${timestamp}.txt`);
   showToast(t("serial.toast.logSaved"), "success");
 }
 
