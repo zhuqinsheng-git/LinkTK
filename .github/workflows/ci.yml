@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20.x, 24.x]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: MCP tool surface (default + advanced)
+        run: npm run test:mcp
+      - name: Multi-controller coordination
+        run: npm run test:coordination
+      - name: YMODEM protocol
+        run: npm run test:ymodem
+      - name: Probe example unit tests
+        run: npm run test:probe
+      # Browser suites (test:ssh, test:smoke) drive a real Edge/Chrome session
+      # and are run locally instead of on CI.

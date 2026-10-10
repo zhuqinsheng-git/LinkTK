@@ -1,0 +1,2782 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#102b31" />
+    <meta
+      name="description"
+      content="Browser-based serial / TCP / UDP / SSH debugging console with a built-in MCP control channel for AI agents."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23102b31'/%3E%3Cpath d='M12 35h9l5-17 8 29 6-19h12' fill='none' stroke='%237ed8c8' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+    <title>LinkTK</title>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="topbar__left">
+          <div class="brand">
+            <div class="brand__mark" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div>
+              <h1>LinkTK</h1>
+            </div>
+          </div>
+
+          <div class="workspace-controls">
+            <div id="workspaceSwitch" class="workspace-switch" role="tablist" aria-label="Workspace type" data-i18n-aria-label="common.workspaceType">
+              <button
+                class="workspace-switch__button is-active"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                data-workspace-mode="serial"
+                data-i18n="serial.tab"
+              >
+                Serial
+              </button>
+              <button
+                class="workspace-switch__button"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                data-workspace-mode="network"
+                data-i18n="net.tab"
+              >
+                Network
+              </button>
+            </div>
+            <button id="bridgeButton" class="button button--secondary bridge-button" type="button">
+              <span id="bridgeButtonText" data-i18n="common.bridge">Bridge</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="topbar__actions">
+          <button
+            id="agentActivityButton"
+            class="button button--secondary agent-activity-button"
+            type="button"
+            title="View and control AI operations"
+            data-i18n-title="agent.activityTitle"
+          >
+            <i data-lucide="activity" aria-hidden="true"></i>
+            <span data-i18n="agent.activityButton">AI activity</span>
+            <span id="agentActivityCount" class="agent-activity-button__count" hidden>0</span>
+            <span id="agentPendingBadge" class="agent-activity-button__pending" hidden data-i18n="agent.pendingBadge">Pending approval</span>
+          </button>
+          <div id="agentState" class="status-pill" data-state="idle" data-short-label="AI">
+            <span class="status-pill__lamp" aria-hidden="true"></span>
+            <span id="agentStateText" data-i18n="agent.stateOffline">AI offline</span>
+          </div>
+          <div id="headerStatus" class="status-pill" data-state="disconnected" data-short-label="SER" data-i18n-short-label="serial.shortLabel">
+            <span class="status-pill__lamp" aria-hidden="true"></span>
+            <span id="headerStatusText" data-i18n="common.disconnected">Disconnected</span>
+          </div>
+          <div
+            id="networkHeaderStatus"
+            class="status-pill"
+            data-state="idle"
+            data-short-label="NET"
+            data-i18n-short-label="net.shortLabel"
+          >
+            <span class="status-pill__lamp" aria-hidden="true"></span>
+            <span id="networkHeaderStatusText" data-i18n="common.disconnected">Disconnected</span>
+          </div>
+          <select
+            id="uiLanguageSelect"
+            class="topbar-language"
+            aria-label="Interface language" data-i18n-aria-label="language.label"
+          >
+            <option value="en">English</option>
+            <option value="zh-CN">中文</option>
+          </select>
+        </div>
+      </header>
+
+      <div id="browserNotice" class="browser-notice" role="alert" hidden>
+        <i data-lucide="triangle-alert" aria-hidden="true"></i>
+        <span id="browserNoticeText"></span>
+      </div>
+
+      <main id="serialWorkspace" class="workspace">
+        <aside id="serialControlPanel" class="control-panel" aria-label="Serial controls" data-i18n-aria-label="serial.panel.label">
+          <nav id="serialControlTabs" class="control-tabs" aria-label="Serial control categories" data-i18n-aria-label="serial.tabs.label">
+            <button
+              class="control-tabs__button is-active"
+              type="button"
+              data-serial-control-group="connection"
+              aria-pressed="true"
+              data-i18n="serial.group.connection"
+            >
+              Connect
+            </button>
+            <button
+              class="control-tabs__button"
+              type="button"
+              data-serial-control-group="commands"
+              aria-pressed="false"
+              data-i18n="serial.group.commands"
+            >
+              Send
+            </button>
+            <button
+              class="control-tabs__button"
+              type="button"
+              data-serial-control-group="automation"
+              aria-pressed="false"
+              data-i18n="serial.group.automation"
+            >
+              Automation
+            </button>
+            <button
+              class="control-tabs__button"
+              type="button"
+              data-serial-control-group="transfer"
+              aria-pressed="false"
+              data-i18n="serial.group.transfer"
+            >
+              Transfer
+            </button>
+          </nav>
+
+          <section
+            id="portSection"
+            class="panel-section panel-section--port panel-section--collapsible"
+            data-control-group="connection"
+          >
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">PORT</p>
+                <h2 data-i18n="serial.port.section">Serial port</h2>
+              </div>
+              <div class="section-heading__actions">
+                <span id="portStateBadge" class="mini-badge" data-i18n="serial.portState.none">Not selected</span>
+                <button
+                  id="portSectionToggleButton"
+                  class="section-collapse-button"
+                  type="button"
+                  aria-expanded="true"
+                  aria-controls="portSectionContent"
+                  title="Collapse serial port"
+                  data-i18n-title="serial.port.collapse"
+                  aria-label="Collapse serial port"
+                  data-i18n-aria-label="serial.port.collapse"
+                >
+                  <i data-lucide="chevron-down" aria-hidden="true"></i>
+                </button>
+              </div>
+            </div>
+
+            <div id="portSectionContent" class="panel-section__collapsible">
+              <div class="port-picker">
+                <span class="select-shell port-picker__select">
+                  <select id="portSelect" aria-label="Serial port" data-i18n-aria-label="serial.port.selectLabel">
+                    <option value="" data-i18n="serial.port.noneAuthorized">No authorized ports yet</option>
+                  </select>
+                  <i data-lucide="chevron-down" aria-hidden="true"></i>
+                </span>
+                <button
+                  id="refreshPortsButton"
+                  class="icon-button"
+                  type="button"
+                  title="Refresh authorized ports"
+                  data-i18n-title="serial.port.refresh"
+                  aria-label="Refresh authorized ports"
+                  data-i18n-aria-label="serial.port.refresh"
+                >
+                  <i data-lucide="refresh-cw" aria-hidden="true"></i>
+                </button>
+              </div>
+
+              <div class="preset-picker">
+                <span class="select-shell preset-picker__select">
+                  <select id="serialPresetSelect" aria-label="Serial connection preset" data-i18n-aria-label="serial.preset.selectLabel">
+                    <option value="" data-i18n="serial.preset.emptyOption">Connection preset</option>
+                  </select>
+                  <i data-lucide="chevron-down" aria-hidden="true"></i>
+                </span>
+                <button
+                  id="saveSerialPresetButton"
+                  class="icon-button"
+                  type="button"
+                  title="Save current serial configuration"
+                  data-i18n-title="serial.preset.save"
+                  aria-label="Save current serial configuration"
+                  data-i18n-aria-label="serial.preset.save"
+                >
+                  <i data-lucide="bookmark-plus" aria-hidden="true"></i>
+                </button>
+                <button
+                  id="deleteSerialPresetButton"
+                  class="icon-button"
+                  type="button"
+                  title="Delete selected serial preset"
+                  data-i18n-title="serial.preset.delete"
+                  aria-label="Delete selected serial preset"
+                  data-i18n-aria-label="serial.preset.delete"
+                  disabled
+                >
+                  <i data-lucide="trash-2" aria-hidden="true"></i>
+                </button>
+              </div>
+
+              <div class="port-actions">
+                <button id="requestPortButton" class="button button--secondary" type="button">
+                  <i data-lucide="usb" aria-hidden="true"></i>
+                  <span data-i18n="serial.port.request">Select COM port</span>
+                </button>
+                <button id="connectButton" class="button button--connect" type="button" disabled>
+                  <i data-lucide="plug" aria-hidden="true"></i>
+                  <span data-i18n="serial.port.open">Open port</span>
+                </button>
+              </div>
+
+              <div id="portDetails" class="port-details">
+                <span class="port-details__line"></span>
+                <p data-i18n="serial.port.hint">After choosing a COM port in the system dialog, the browser remembers paired devices.</p>
+              </div>
+            </div>
+          </section>
+
+          <section
+            id="serialSettingsSection"
+            class="panel-section panel-section--collapsible"
+            data-control-group="connection"
+          >
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">LINK</p>
+                <h2 data-i18n="serial.settings.section">Serial settings</h2>
+              </div>
+              <div class="section-heading__actions">
+                <button
+                  id="restoreDefaultsButton"
+                  class="icon-button icon-button--small"
+                  type="button"
+                  title="Restore default parameters"
+                  data-i18n-title="serial.settings.restore"
+                  aria-label="Restore default parameters"
+                  data-i18n-aria-label="serial.settings.restore"
+                >
+                  <i data-lucide="rotate-ccw" aria-hidden="true"></i>
+                </button>
+                <button
+                  id="serialSettingsToggleButton"
+                  class="section-collapse-button"
+                  type="button"
+                  aria-expanded="true"
+                  aria-controls="serialSettingsContent"
+                  title="Collapse serial settings"
+                  data-i18n-title="serial.settings.collapse"
+                  aria-label="Collapse serial settings"
+                  data-i18n-aria-label="serial.settings.collapse"
+                >
+                  <i data-lucide="chevron-down" aria-hidden="true"></i>
+                </button>
+              </div>
+            </div>
+
+            <div id="serialSettingsContent" class="panel-section__collapsible">
+              <div class="serial-settings-row">
+                <label class="field field--baud">
+                  <span data-i18n="serial.baudRate">Baud rate</span>
+                  <span class="select-shell">
+                    <select id="baudRate">
+                      <option value="110">110</option>
+                      <option value="300">300</option>
+                      <option value="600">600</option>
+                      <option value="1200">1200</option>
+                      <option value="2400">2400</option>
+                      <option value="4800">4800</option>
+                      <option value="9600">9600</option>
+                      <option value="14400">14400</option>
+                      <option value="19200">19200</option>
+                      <option value="28800">28800</option>
+                      <option value="38400">38400</option>
+                      <option value="57600">57600</option>
+                      <option value="76800">76800</option>
+                      <option value="115200" selected>115200</option>
+                      <option value="128000">128000</option>
+                      <option value="230400">230400</option>
+                      <option value="256000">256000</option>
+                      <option value="460800">460800</option>
+                      <option value="500000">500000</option>
+                      <option value="576000">576000</option>
+                      <option value="921600">921600</option>
+                      <option value="1000000">1000000</option>
+                      <option value="1500000">1500000</option>
+                      <option value="2000000">2000000</option>
+                    </select>
+                    <i data-lucide="chevron-down" aria-hidden="true"></i>
+                  </span>
+                </label>
+
+                <button id="openAdvancedSerialSettingsButton" class="button button--secondary serial-settings-more" type="button">
+                  <i data-lucide="settings-2" aria-hidden="true"></i>
+                  <span data-i18n="serial.settings.more">More</span>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section
+            id="quickSendSection"
+            class="panel-section quick-send-section"
+            data-control-group="commands"
+          >
+            <button
+              id="quickSendToggleButton"
+              class="section-heading section-heading--button"
+              type="button"
+              aria-expanded="true"
+              aria-controls="quickSendContent"
+            >
+              <span>
+                <span class="section-kicker">COMMANDS</span>
+                <strong class="quick-send-title" data-i18n="serial.quickSend.title">Quick send</strong>
+              </span>
+              <i class="quick-send-toggle-icon" data-lucide="chevron-down" aria-hidden="true"></i>
+            </button>
+            <div id="quickSendContent" class="quick-send-content">
+              <div class="quick-send-toolbar">
+                <span id="quickSendCount" class="quick-send-count">1 / 20</span>
+                <button id="addQuickCommandButton" class="quick-send-add" type="button">
+                  <i data-lucide="plus" aria-hidden="true"></i>
+                  <span data-i18n="serial.quickSend.add">Add</span>
+                </button>
+              </div>
+              <div id="quickCommandList" class="quick-command-list" aria-label="Serial quick send list" data-i18n-aria-label="serial.quickSend.listLabel"></div>
+            </div>
+          </section>
+
+          <section
+            id="macroSection"
+            class="panel-section macro-section"
+            data-control-group="automation"
+          >
+            <button
+              id="macroToggleButton"
+              class="section-heading section-heading--button"
+              type="button"
+              aria-expanded="true"
+              aria-controls="macroContent"
+            >
+              <span>
+                <span class="section-kicker">AUTOMATION</span>
+                <strong class="macro-title" data-i18n="macro.section">Macro</strong>
+              </span>
+              <i class="macro-toggle-icon" data-lucide="chevron-down" aria-hidden="true"></i>
+            </button>
+            <div id="macroContent" class="macro-content">
+              <div class="macro-toolbar">
+                <button id="macroRecordButton" class="button button--secondary macro-record-button" type="button" disabled>
+                  <i class="macro-record-icon-start" data-lucide="circle" aria-hidden="true"></i>
+                  <i class="macro-record-icon-stop" data-lucide="square" aria-hidden="true" hidden></i>
+                  <span data-i18n="macro.record.start">Start recording</span>
+                </button>
+                <button
+                  id="macroStopButton"
+                  class="icon-button icon-button--small macro-stop-button"
+                  type="button"
+                  title="Stop playback"
+                  data-i18n-title="macro.playback.stop"
+                  aria-label="Stop Macro playback"
+                  data-i18n-aria-label="macro.playback.stopAria"
+                  hidden
+                >
+                  <i data-lucide="square" aria-hidden="true"></i>
+                </button>
+                <span id="macroRecordState" class="mini-badge mini-badge--idle" data-i18n="macro.state.idle">Idle</span>
+              </div>
+              <div id="macroList" class="macro-list" aria-live="polite"></div>
+            </div>
+          </section>
+
+          <section
+            id="ymodemSection"
+            class="panel-section ymodem-section"
+            data-control-group="transfer"
+          >
+            <button
+              id="ymodemToggleButton"
+              class="section-heading section-heading--button"
+              type="button"
+              aria-expanded="true"
+              aria-controls="ymodemContent"
+            >
+              <span>
+                <p class="section-kicker">TRANSFER</p>
+                <strong class="ymodem-title" data-i18n="ymodem.section">YMODEM file transfer</strong>
+              </span>
+              <span class="ymodem-heading-actions">
+                <span id="ymodemStateBadge" class="mini-badge mini-badge--idle" data-i18n="ymodem.state.idle">Idle</span>
+                <i class="ymodem-toggle-icon" data-lucide="chevron-down" aria-hidden="true"></i>
+              </span>
+            </button>
+
+            <div id="ymodemContent" class="ymodem-content">
+              <div class="segmented ymodem-mode" role="tablist" aria-label="YMODEM transfer direction" data-i18n-aria-label="ymodem.mode.label">
+              <button
+                class="segmented__button is-active"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                data-ymodem-mode="send"
+                data-i18n="ymodem.mode.send"
+              >
+                Send file
+              </button>
+              <button
+                class="segmented__button"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                data-ymodem-mode="receive"
+                data-i18n="ymodem.mode.receive"
+              >
+                Receive file
+              </button>
+            </div>
+
+            <div id="ymodemSendPane" class="ymodem-pane">
+              <input id="ymodemFileInput" type="file" hidden />
+              <button id="ymodemChooseFileButton" class="button button--secondary" type="button">
+                <i data-lucide="send-horizontal" aria-hidden="true"></i>
+                <span data-i18n="ymodem.chooseFile">Choose file</span>
+              </button>
+
+              <div class="ymodem-file-summary">
+                <strong id="ymodemFileName" data-i18n="ymodem.file.none">No file selected</strong>
+                <span id="ymodemFileMeta" data-i18n="ymodem.file.waiting">Waiting for a local file</span>
+              </div>
+
+              <label class="inline-field ymodem-option">
+                <span data-i18n="ymodem.blockSize">Block size</span>
+                <span class="select-shell select-shell--compact">
+                  <select id="ymodemBlockSize">
+                    <option value="1024" selected>1 KB</option>
+                    <option value="128">128 B</option>
+                  </select>
+                  <i data-lucide="chevron-down" aria-hidden="true"></i>
+                </span>
+              </label>
+
+              <button id="ymodemSendButton" class="button button--primary" type="button" disabled>
+                <i data-lucide="send-horizontal" aria-hidden="true"></i>
+                <span data-i18n="ymodem.send.start">Start sending</span>
+              </button>
+            </div>
+
+            <div id="ymodemReceivePane" class="ymodem-pane" hidden>
+              <button id="ymodemReceiveButton" class="button button--primary" type="button" disabled>
+                <i data-lucide="download" aria-hidden="true"></i>
+                <span data-i18n="ymodem.receive.start">Start receiving</span>
+              </button>
+            </div>
+
+            <div class="ymodem-progress">
+              <div class="ymodem-progress__labels">
+                <span id="ymodemProgressText" data-i18n="ymodem.progress.waiting">Waiting</span>
+                <span id="ymodemProgressValue">0%</span>
+              </div>
+              <progress id="ymodemProgress" max="100" value="0">0%</progress>
+            </div>
+
+            <div id="ymodemLog" class="ymodem-log" aria-live="polite"></div>
+
+              <button id="ymodemCancelButton" class="button button--ghost ymodem-cancel" type="button" hidden>
+                <i data-lucide="x" aria-hidden="true"></i>
+                <span data-i18n="ymodem.cancel">Cancel transfer</span>
+              </button>
+            </div>
+          </section>
+
+          <section class="panel-section panel-section--stats" data-control-group="connection">
+            <div class="stat">
+              <span class="stat__label">RX</span>
+              <strong id="rxCounter">0 B</strong>
+            </div>
+            <div class="stat">
+              <span class="stat__label">TX</span>
+              <strong id="txCounter">0 B</strong>
+            </div>
+            <div class="stat">
+              <span class="stat__label">ERROR</span>
+              <strong id="errorCounter">0</strong>
+            </div>
+          </section>
+        </aside>
+
+        <section class="console-area">
+          <section id="receivePanel" class="receive-panel" data-console-view="log">
+            <header class="console-toolbar">
+              <div class="console-title">
+                <span class="console-title__dot" aria-hidden="true"></span>
+                <div>
+                  <p class="section-kicker">MONITOR</p>
+                  <h2 id="consoleTitle" data-i18n="serial.console.receiveTitle">Receive monitor</h2>
+                </div>
+                <span id="streamState" class="mini-badge mini-badge--idle" data-i18n="serial.stream.idle">Idle</span>
+                <div class="console-view-switch" role="tablist" aria-label="Console view" data-i18n-aria-label="serial.console.viewLabel">
+                  <button
+                    class="console-view-switch__button is-active"
+                    type="button"
+                    role="tab"
+                    aria-selected="true"
+                    data-console-view="log"
+                    data-i18n="serial.console.view.log"
+                  >
+                    Log
+                  </button>
+                  <button
+                    class="console-view-switch__button"
+                    type="button"
+                    role="tab"
+                    aria-selected="false"
+                    data-console-view="terminal"
+                    data-i18n="serial.console.view.terminal"
+                  >
+                    Terminal
+                  </button>
+                </div>
+              </div>
+
+              <div class="toolbar-group log-only-control" aria-label="Receive display settings" data-i18n-aria-label="serial.toolbar.displayLabel">
+                <div class="direction-toggles" role="group" aria-label="Log direction display" data-i18n-aria-label="serial.toolbar.directionLabel">
+                  <label class="direction-toggle direction-toggle--rx" title="Show receive log" data-i18n-title="serial.toolbar.showRx">
+                    <input id="showRxToggle" type="checkbox" checked />
+                    <span>RX</span>
+                  </label>
+                  <label class="direction-toggle direction-toggle--tx" title="Show send log" data-i18n-title="serial.toolbar.showTx">
+                    <input id="showTxToggle" type="checkbox" checked />
+                    <span>TX</span>
+                  </label>
+                  <label class="direction-toggle direction-toggle--sys" title="Show system log" data-i18n-title="serial.toolbar.showSys">
+                    <input id="showSysToggle" type="checkbox" checked />
+                    <span>SYS</span>
+                  </label>
+                </div>
+
+                <div class="segmented" aria-label="Receive data display mode" data-i18n-aria-label="serial.toolbar.modeLabel">
+                  <button class="segmented__button is-active" type="button" data-receive-mode="text" data-i18n="common.mode.text">
+                    Text
+                  </button>
+                  <button class="segmented__button" type="button" data-receive-mode="hex">
+                    HEX
+                  </button>
+                </div>
+
+                <button
+                  id="serialDisplaySettingsButton"
+                  class="display-settings-button"
+                  type="button"
+                  title="Receive area display settings"
+                  data-i18n-title="serial.toolbar.displaySettings"
+                  aria-haspopup="dialog"
+                >
+                  <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+                  <span data-i18n="serial.toolbar.display">Display</span>
+                </button>
+
+                <label class="keyword-search" title="Separate multiple keywords with commas" data-i18n-title="serial.search.hint">
+                  <i data-lucide="search" aria-hidden="true"></i>
+                  <input
+                    id="keywordInput"
+                    type="search"
+                    placeholder="Keyword"
+                    data-i18n-placeholder="serial.search.placeholder"
+                    spellcheck="false"
+                    autocomplete="off"
+                  />
+                </label>
+                <button
+                  id="keywordConfigButton"
+                  class="keyword-config-button"
+                  type="button"
+                  title="Filter configuration"
+                  data-i18n-title="serial.search.config"
+                  aria-label="Filter configuration"
+                  data-i18n-aria-label="serial.search.config"
+                  aria-pressed="false"
+                  data-filter-config
+                >
+                  <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+                </button>
+                <button
+                  id="keywordFilterButton"
+                  class="keyword-filter-button"
+                  type="button"
+                  title="Show only log entries matching the keywords"
+                  data-i18n-title="serial.search.filterOnly"
+                  aria-label="Show only log entries matching the keywords"
+                  data-i18n-aria-label="serial.search.filterOnly"
+                  aria-pressed="false"
+                  disabled
+                >
+                  <i data-lucide="filter" aria-hidden="true"></i>
+                  <span data-i18n="serial.search.filter">Filter</span>
+                </button>
+              </div>
+
+              <div class="toolbar-group terminal-controls" hidden>
+                <label class="tool-toggle" title="Show keyboard input locally" data-i18n-title="serial.terminal.localEchoHint">
+                  <input id="terminalLocalEcho" type="checkbox" />
+                  <i data-lucide="keyboard" aria-hidden="true"></i>
+                  <span data-i18n="serial.terminal.localEcho">Local echo</span>
+                </label>
+                <label class="keyword-search keyword-search--terminal" title="Separate multiple keywords with commas" data-i18n-title="serial.search.hint">
+                  <i data-lucide="search" aria-hidden="true"></i>
+                  <input
+                    id="terminalKeywordInput"
+                    type="search"
+                    placeholder="Find"
+                    data-i18n-placeholder="serial.search.find"
+                    spellcheck="false"
+                    autocomplete="off"
+                  />
+                </label>
+                <button
+                  id="terminalKeywordConfigButton"
+                  class="keyword-config-button"
+                  type="button"
+                  title="Filter configuration"
+                  data-i18n-title="serial.search.config"
+                  aria-label="Filter configuration"
+                  data-i18n-aria-label="serial.search.config"
+                  aria-pressed="false"
+                  data-filter-config
+                >
+                  <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+                </button>
+                <button
+                  id="terminalKeywordPreviousButton"
+                  class="keyword-nav-button"
+                  type="button"
+                  title="Previous match"
+                  data-i18n-title="serial.search.prev"
+                  aria-label="Previous match"
+                  data-i18n-aria-label="serial.search.prev"
+                  disabled
+                >
+                  <i data-lucide="arrow-up" aria-hidden="true"></i>
+                </button>
+                <button
+                  id="terminalKeywordNextButton"
+                  class="keyword-nav-button"
+                  type="button"
+                  title="Next match"
+                  data-i18n-title="serial.search.next"
+                  aria-label="Next match"
+                  data-i18n-aria-label="serial.search.next"
+                  disabled
+                >
+                  <i data-lucide="arrow-down" aria-hidden="true"></i>
+                </button>
+              </div>
+
+              <div class="toolbar-actions">
+                <button
+                  id="pauseButton"
+                  class="icon-button log-only-control"
+                  type="button"
+                  title="Pause receive display"
+                  data-i18n-title="serial.toolbar.pause"
+                  aria-label="Pause receive display"
+                  data-i18n-aria-label="serial.toolbar.pause"
+                  aria-pressed="false"
+                >
+                  <i data-lucide="pause" aria-hidden="true"></i>
+                </button>
+                <button
+                  id="autoSaveButton"
+                  class="icon-button log-only-control"
+                  type="button"
+                  title="Auto-save settings"
+                  data-i18n-title="serial.toolbar.autoSave"
+                  aria-label="Auto-save settings"
+                  data-i18n-aria-label="serial.toolbar.autoSave"
+                >
+                  <i data-lucide="settings-2" aria-hidden="true"></i>
+                </button>
+                <button
+                  id="saveButton"
+                  class="icon-button log-only-control"
+                  type="button"
+                  title="Save log"
+                  data-i18n-title="serial.toolbar.saveLog"
+                  aria-label="Save log"
+                  data-i18n-aria-label="serial.toolbar.saveLog"
+                >
+                  <i data-lucide="download" aria-hidden="true"></i>
+                </button>
+                <button
+                  id="clearButton"
+                  class="icon-button"
+                  type="button"
+                  title="Clear receive area"
+                  data-i18n-title="serial.toolbar.clear"
+                  aria-label="Clear receive area"
+                  data-i18n-aria-label="serial.toolbar.clear"
+                >
+                  <i data-lucide="eraser" aria-hidden="true"></i>
+                </button>
+              </div>
+            </header>
+
+            <div class="console-subbar log-only">
+              <div class="console-subbar__item">
+                <i data-lucide="activity" aria-hidden="true"></i>
+                <span id="rateReadout">0 B/s</span>
+              </div>
+              <div class="console-subbar__item">
+                <i data-lucide="layers-3" aria-hidden="true"></i>
+                <span id="packetReadout">0 frames</span>
+              </div>
+              <button id="followLatestButton" class="follow-latest" type="button" hidden>
+                <i data-lucide="arrow-down-to-line" aria-hidden="true"></i>
+                <span data-i18n="serial.console.followLatest">Jump to latest</span>
+              </button>
+              <span id="pauseHint" class="pause-hint" hidden data-i18n="serial.console.pausedHint">Display paused; data is still being received</span>
+            </div>
+
+            <div id="consoleViewport" class="console-viewport log-only" tabindex="0">
+              <div id="emptyState" class="empty-state">
+                <div class="empty-state__icon">
+                  <i data-lucide="cable" aria-hidden="true"></i>
+                </div>
+                <strong data-i18n="serial.empty.title">Waiting for serial data</strong>
+                <span data-i18n="serial.empty.hint">Choose a port and open it; received data will appear here.</span>
+              </div>
+              <div id="logContent" class="log-content" aria-live="polite"></div>
+            </div>
+
+            <div id="terminalViewport" class="terminal-viewport" hidden>
+              <div id="terminalMount" class="terminal-mount" aria-label="Interactive terminal" data-i18n-aria-label="serial.terminal.aria"></div>
+            </div>
+
+            <footer id="consoleFooter" class="console-footer log-only">
+              <div class="activity-meter" id="activityMeter" aria-hidden="true"></div>
+              <div class="console-footer__meta">
+                <span id="receiveModeLabel" data-i18n="serial.footer.utf8Text">UTF-8 text</span>
+                <span id="lastActivityLabel" data-i18n="serial.footer.noActivity">No activity</span>
+              </div>
+            </footer>
+
+            <footer id="terminalFooter" class="terminal-footer" hidden>
+              <span id="terminalStateLabel" data-i18n="serial.terminal.state.idle">Terminal idle</span>
+              <span>UTF-8 · ANSI</span>
+            </footer>
+          </section>
+
+          <section id="sendPanel" class="send-panel">
+            <header class="send-header">
+              <div>
+                <p class="section-kicker">TRANSMIT</p>
+                <h2 data-i18n="serial.send.title">Send area</h2>
+              </div>
+
+              <div class="send-header__tools">
+                <div class="segmented" aria-label="Send data mode" data-i18n-aria-label="serial.send.modeLabel">
+                  <button
+                    class="segmented__button is-active"
+                    type="button"
+                    data-send-mode="text"
+                    data-i18n="common.mode.text"
+                  >
+                    Text
+                  </button>
+                  <button class="segmented__button" type="button" data-send-mode="hex">
+                    HEX
+                  </button>
+                </div>
+
+                <label class="inline-field">
+                  <span data-i18n="serial.send.lineEnding">Line ending</span>
+                  <span class="select-shell select-shell--compact">
+                    <select id="lineEnding">
+                      <option value="none" data-i18n="common.none">None</option>
+                      <option value="lf">LF</option>
+                      <option value="cr">CR</option>
+                      <option value="crlf" selected>CR LF</option>
+                    </select>
+                    <i data-lucide="chevron-down" aria-hidden="true"></i>
+                  </span>
+                </label>
+
+                <button
+                  id="serialTemplateButton"
+                  class="icon-button"
+                  type="button"
+                  title="Template variables"
+                  data-i18n-title="serial.send.template"
+                  aria-label="Template variables"
+                  data-i18n-aria-label="serial.send.template"
+                >
+                  <i data-lucide="braces" aria-hidden="true"></i>
+                </button>
+
+                <button
+                  id="serialResponseTestButton"
+                  class="icon-button"
+                  type="button"
+                  title="Response test"
+                  data-i18n-title="serial.send.responseTest"
+                  aria-label="Response test"
+                  data-i18n-aria-label="serial.send.responseTest"
+                  aria-pressed="false"
+                >
+                  <i data-lucide="gauge" aria-hidden="true"></i>
+                </button>
+
+                <button
+                  id="toggleSendPanelButton"
+                  class="icon-button"
+                  type="button"
+                  title="Collapse send area"
+                  data-i18n-title="serial.send.collapse"
+                  aria-label="Collapse send area"
+                  data-i18n-aria-label="serial.send.collapse"
+                  aria-pressed="false"
+                >
+                  <i data-lucide="chevrons-down" aria-hidden="true"></i>
+                </button>
+
+                <button
+                  id="clearInputButton"
+                  class="icon-button"
+                  type="button"
+                  title="Clear send content"
+                  data-i18n-title="serial.send.clear"
+                  aria-label="Clear send content"
+                  data-i18n-aria-label="serial.send.clear"
+                >
+                  <i data-lucide="eraser" aria-hidden="true"></i>
+                </button>
+              </div>
+            </header>
+
+            <div class="send-body">
+              <textarea
+                id="sendInput"
+                class="send-input"
+                rows="4"
+                placeholder="Enter data to send"
+                data-i18n-placeholder="serial.send.placeholder"
+                spellcheck="false"
+              ></textarea>
+
+              <div class="send-controls">
+                <div class="auto-send">
+                  <label for="autoSendInterval" data-i18n="serial.send.autoSend">Auto send</label>
+                  <div class="auto-send__fields">
+                    <span class="input-shell input-shell--suffix">
+                      <input
+                        id="autoSendInterval"
+                        type="number"
+                        min="10"
+                        step="10"
+                        value="1000"
+                        inputmode="numeric"
+                      />
+                      <span>ms</span>
+                    </span>
+                    <span class="input-shell input-shell--suffix" title="0 means unlimited" data-i18n-title="serial.send.autoSendCountHint">
+                      <input
+                        id="autoSendCount"
+                        type="number"
+                        min="0"
+                        step="1"
+                        value="0"
+                        inputmode="numeric"
+                        aria-label="Auto send count"
+                        data-i18n-aria-label="serial.send.autoSendCountLabel"
+                      />
+                      <span data-i18n="serial.send.times">times</span>
+                    </span>
+                  </div>
+                  <button
+                    id="autoSendButton"
+                    class="button button--ghost"
+                    type="button"
+                    aria-pressed="false"
+                  >
+                    <i data-lucide="timer" aria-hidden="true"></i>
+                    <span data-i18n="serial.send.autoSendStart">Start</span>
+                  </button>
+                </div>
+
+                <button id="sendButton" class="button button--send" type="button" disabled>
+                  <i data-lucide="send-horizontal" aria-hidden="true"></i>
+                  <span data-i18n="serial.send.send">Send data</span>
+                </button>
+              </div>
+            </div>
+          </section>
+        </section>
+      </main>
+
+      <main id="networkWorkspace" class="workspace workspace--network" hidden>
+        <aside class="control-panel" aria-label="Network controls" data-i18n-aria-label="net.panel.label">
+          <section class="panel-section panel-section--network">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">NETWORK</p>
+                <h2 data-i18n="net.section.connection">Network connection</h2>
+              </div>
+              <span id="networkStateBadge" class="mini-badge mini-badge--idle" data-i18n="common.disconnected">Disconnected</span>
+            </div>
+
+            <div class="segmented network-mode network-mode--protocol" role="tablist" aria-label="Network protocol" data-i18n-aria-label="net.protocol.label">
+              <button
+                class="segmented__button is-active"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                data-network-protocol="tcp"
+              >
+                TCP
+              </button>
+              <button
+                class="segmented__button"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                data-network-protocol="udp"
+              >
+                UDP
+              </button>
+              <button
+                class="segmented__button"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                data-network-protocol="ssh"
+              >
+                SSH
+              </button>
+            </div>
+
+            <div
+              id="networkRoleGroup"
+              class="segmented network-mode network-mode--role"
+              role="tablist"
+              aria-label="Network role"
+              data-i18n-aria-label="net.role.label"
+            >
+              <button
+                class="segmented__button is-active"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                data-network-role="server"
+                data-i18n="net.role.server"
+              >
+                Server
+              </button>
+              <button
+                class="segmented__button"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                data-network-role="client"
+                data-i18n="net.role.client"
+              >
+                Client
+              </button>
+            </div>
+
+            <div id="networkTcpFields" class="field-grid network-fields">
+              <label class="field field--wide">
+                <span id="networkHostLabel" data-i18n="net.field.hostListen">Listen address</span>
+                <span class="input-shell">
+                  <input id="networkHost" type="text" value="127.0.0.1" spellcheck="false" />
+                </span>
+              </label>
+
+              <label class="field field--wide">
+                <span id="networkPortLabel" data-i18n="net.field.portListen">Listen port</span>
+                <span class="input-shell">
+                  <input
+                    id="networkPort"
+                    type="number"
+                    min="1"
+                    max="65535"
+                    value="9000"
+                    inputmode="numeric"
+                  />
+                </span>
+              </label>
+            </div>
+
+            <div id="sshConnectionSummary" class="ssh-connection-summary" hidden>
+              <span class="ssh-connection-summary__icon" aria-hidden="true">
+                <i data-lucide="plug"></i>
+              </span>
+              <span class="ssh-connection-summary__content">
+                <strong id="sshSummaryAlias" data-i18n="ssh.summary.none">SSH not configured</strong>
+                <span id="sshSummaryEndpoint">root@192.168.1.2:22</span>
+                <small id="sshSummaryStatus" data-i18n="ssh.summary.hint">Click “Connection settings” to fill in the parameters</small>
+              </span>
+            </div>
+
+            <div id="networkPresetPicker" class="preset-picker">
+              <span class="select-shell preset-picker__select">
+                <select id="networkPresetSelect" aria-label="Network connection preset" data-i18n-aria-label="net.preset.selectLabel">
+                  <option value="" data-i18n="net.preset.emptyOption">Connection preset</option>
+                </select>
+                <i data-lucide="chevron-down" aria-hidden="true"></i>
+              </span>
+              <button
+                id="saveNetworkPresetButton"
+                class="icon-button"
+                type="button"
+                title="Save current network configuration"
+                data-i18n-title="net.preset.save"
+                aria-label="Save current network configuration"
+                data-i18n-aria-label="net.preset.save"
+              >
+                <i data-lucide="bookmark-plus" aria-hidden="true"></i>
+              </button>
+              <button
+                id="deleteNetworkPresetButton"
+                class="icon-button"
+                type="button"
+                title="Delete selected network preset"
+                data-i18n-title="net.preset.delete"
+                aria-label="Delete selected network preset"
+                data-i18n-aria-label="net.preset.delete"
+                disabled
+              >
+                <i data-lucide="trash-2" aria-hidden="true"></i>
+              </button>
+            </div>
+
+            <button id="networkConnectButton" class="button button--primary" type="button">
+              <i data-lucide="plug" aria-hidden="true"></i>
+              <span data-i18n="net.connect.server">Start server</span>
+            </button>
+
+            <div id="networkDetails" class="port-details">
+              <span class="port-details__line"></span>
+              <p data-i18n="net.hint">Choose a protocol and role to establish a real network connection.</p>
+            </div>
+          </section>
+
+          <section id="networkQuickSendSection" class="panel-section quick-send-section">
+            <button
+              id="networkQuickSendToggleButton"
+              class="section-heading section-heading--button"
+              type="button"
+              aria-expanded="true"
+              aria-controls="networkQuickSendContent"
+            >
+              <span>
+                <span class="section-kicker">COMMANDS</span>
+                <strong class="quick-send-title" data-i18n="net.quickSend.title">Quick send</strong>
+              </span>
+              <i class="quick-send-toggle-icon" data-lucide="chevron-down" aria-hidden="true"></i>
+            </button>
+            <div id="networkQuickSendContent" class="quick-send-content">
+              <div class="quick-send-toolbar">
+                <span id="networkQuickSendCount" class="quick-send-count">1 / 20</span>
+                <button id="addNetworkQuickCommandButton" class="quick-send-add" type="button">
+                  <i data-lucide="plus" aria-hidden="true"></i>
+                  <span data-i18n="net.quickSend.add">Add</span>
+                </button>
+              </div>
+              <div
+                id="networkQuickCommandList"
+                class="quick-command-list"
+                aria-label="Quick send list"
+                data-i18n-aria-label="net.quickSend.listLabel"
+              ></div>
+            </div>
+          </section>
+
+          <section id="networkStatsSection" class="panel-section panel-section--stats">
+            <div class="stat">
+              <span class="stat__label">RX</span>
+              <strong id="networkRxCounter">0 B</strong>
+            </div>
+            <div class="stat">
+              <span class="stat__label">TX</span>
+              <strong id="networkTxCounter">0 B</strong>
+            </div>
+            <div class="stat">
+              <span class="stat__label">LINK</span>
+              <strong id="networkLinkCounter">0</strong>
+            </div>
+          </section>
+        </aside>
+
+        <section class="console-area">
+          <section id="sshTerminalPanel" class="receive-panel network-panel ssh-panel" hidden>
+            <header class="console-toolbar">
+              <div class="console-title">
+                <span id="sshTitleDot" class="console-title__dot" aria-hidden="true"></span>
+                <div>
+                  <p class="section-kicker">SSH</p>
+                  <h2 data-i18n="ssh.terminal.title">SSH terminal</h2>
+                </div>
+                <span id="sshStreamState" class="mini-badge mini-badge--idle" data-i18n="ssh.stream.idle">Idle</span>
+              </div>
+
+              <div></div>
+
+              <div class="toolbar-actions">
+                <button
+                  id="sshFileButton"
+                  class="button button--secondary ssh-file-button"
+                  type="button"
+                  title="Browse and transfer remote files"
+                  data-i18n-title="ssh.file.browseTitle"
+                  aria-label="Open SSH file panel"
+                  data-i18n-aria-label="ssh.file.openLabel"
+                  disabled
+                >
+                  <i data-lucide="folder-open" aria-hidden="true"></i>
+                  <span data-i18n="ssh.file.button">Files</span>
+                </button>
+                <button
+                  id="sshClearButton"
+                  class="icon-button"
+                  type="button"
+                  title="Clear SSH terminal"
+                  data-i18n-title="ssh.terminal.clear"
+                  aria-label="Clear SSH terminal"
+                  data-i18n-aria-label="ssh.terminal.clear"
+                >
+                  <i data-lucide="eraser" aria-hidden="true"></i>
+                </button>
+              </div>
+            </header>
+
+            <div id="sshTerminalViewport" class="terminal-viewport ssh-terminal-viewport">
+              <div id="sshTerminalMount" class="terminal-mount"></div>
+            </div>
+
+            <footer class="terminal-footer">
+              <span id="sshEndpointLabel" data-i18n="ssh.footer.notConnected">Not connected yet</span>
+              <span id="sshFingerprintLabel" data-i18n="ssh.footer.fingerprintNone">Host fingerprint: not available</span>
+            </footer>
+          </section>
+
+          <section id="networkMonitorPanel" class="receive-panel network-panel">
+            <header class="console-toolbar">
+              <div class="console-title">
+                <span id="networkTitleDot" class="console-title__dot" aria-hidden="true"></span>
+                <div>
+                  <p class="section-kicker">MONITOR</p>
+                  <h2 data-i18n="net.console.title">Network monitor</h2>
+                </div>
+                <span id="networkStreamState" class="mini-badge mini-badge--idle" data-i18n="net.stream.idle">Idle</span>
+              </div>
+
+              <div class="toolbar-group" aria-label="Network data display settings" data-i18n-aria-label="net.toolbar.displayLabel">
+                <div class="direction-toggles" role="group" aria-label="Network log direction display" data-i18n-aria-label="net.toolbar.directionLabel">
+                  <label class="direction-toggle direction-toggle--rx" title="Show receive log" data-i18n-title="net.toolbar.showRx">
+                    <input id="networkShowRxToggle" type="checkbox" checked />
+                    <span>RX</span>
+                  </label>
+                  <label class="direction-toggle direction-toggle--tx" title="Show send log" data-i18n-title="net.toolbar.showTx">
+                    <input id="networkShowTxToggle" type="checkbox" checked />
+                    <span>TX</span>
+                  </label>
+                  <label class="direction-toggle direction-toggle--sys" title="Show system log" data-i18n-title="net.toolbar.showSys">
+                    <input id="networkShowSysToggle" type="checkbox" checked />
+                    <span>SYS</span>
+                  </label>
+                </div>
+
+                <div class="segmented" aria-label="Network data display mode" data-i18n-aria-label="net.toolbar.modeLabel">
+                  <button
+                    class="segmented__button is-active"
+                    type="button"
+                    data-network-receive-mode="text"
+                    data-i18n="common.mode.text"
+                  >
+                    Text
+                  </button>
+                  <button class="segmented__button" type="button" data-network-receive-mode="hex">
+                    HEX
+                  </button>
+                </div>
+
+                <button
+                  id="networkDisplaySettingsButton"
+                  class="display-settings-button"
+                  type="button"
+                  title="Receive area display settings"
+                  data-i18n-title="net.toolbar.displaySettings"
+                  aria-haspopup="dialog"
+                >
+                  <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+                  <span data-i18n="net.toolbar.display">Display</span>
+                </button>
+
+                <label class="keyword-search" title="Separate multiple keywords with commas" data-i18n-title="net.search.hint">
+                  <i data-lucide="search" aria-hidden="true"></i>
+                  <input
+                    id="networkKeywordInput"
+                    type="search"
+                    placeholder="Keyword"
+                    data-i18n-placeholder="net.search.placeholder"
+                    spellcheck="false"
+                    autocomplete="off"
+                  />
+                </label>
+                <button
+                  id="networkKeywordConfigButton"
+                  class="keyword-config-button"
+                  type="button"
+                  title="Filter configuration"
+                  data-i18n-title="net.search.config"
+                  aria-label="Filter configuration"
+                  data-i18n-aria-label="net.search.config"
+                  aria-pressed="false"
+                  data-filter-config
+                >
+                  <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+                </button>
+                <button
+                  id="networkKeywordFilterButton"
+                  class="keyword-filter-button"
+                  type="button"
+                  title="Show only log entries matching the keywords"
+                  data-i18n-title="net.search.filterOnly"
+                  aria-label="Show only log entries matching the keywords"
+                  data-i18n-aria-label="net.search.filterOnly"
+                  aria-pressed="false"
+                  disabled
+                >
+                  <i data-lucide="filter" aria-hidden="true"></i>
+                  <span data-i18n="net.search.filter">Filter</span>
+                </button>
+              </div>
+
+              <div class="toolbar-actions">
+                <button
+                  id="networkPauseButton"
+                  class="icon-button"
+                  type="button"
+                  title="Pause receive display"
+                  data-i18n-title="net.toolbar.pause"
+                  aria-label="Pause receive display"
+                  data-i18n-aria-label="net.toolbar.pause"
+                  aria-pressed="false"
+                >
+                  <i data-lucide="pause" aria-hidden="true"></i>
+                </button>
+                <button
+                  id="networkAutoSaveButton"
+                  class="icon-button"
+                  type="button"
+                  title="Auto-save settings"
+                  data-i18n-title="net.toolbar.autoSave"
+                  aria-label="Network log auto-save settings"
+                  data-i18n-aria-label="net.toolbar.autoSaveLabel"
+                >
+                  <i data-lucide="settings-2" aria-hidden="true"></i>
+                </button>
+                <button
+                  id="networkSaveButton"
+                  class="icon-button"
+                  type="button"
+                  title="Save network log"
+                  data-i18n-title="net.toolbar.saveLog"
+                  aria-label="Save network log"
+                  data-i18n-aria-label="net.toolbar.saveLog"
+                >
+                  <i data-lucide="download" aria-hidden="true"></i>
+                </button>
+                <button
+                  id="networkClearButton"
+                  class="icon-button"
+                  type="button"
+                  title="Clear network log"
+                  data-i18n-title="net.toolbar.clear"
+                  aria-label="Clear network log"
+                  data-i18n-aria-label="net.toolbar.clear"
+                >
+                  <i data-lucide="eraser" aria-hidden="true"></i>
+                </button>
+              </div>
+            </header>
+
+            <div class="console-subbar">
+              <div class="console-subbar__item">
+                <i data-lucide="activity" aria-hidden="true"></i>
+                <span id="networkRateReadout">0 B/s</span>
+              </div>
+              <div class="console-subbar__item">
+                <i data-lucide="layers-3" aria-hidden="true"></i>
+                <span id="networkPacketReadout">0 frames</span>
+              </div>
+              <div id="networkPeerList" class="network-peer-list" aria-label="Peer address colors" data-i18n-aria-label="net.peerList.label" hidden></div>
+              <button id="networkFollowLatestButton" class="follow-latest" type="button" hidden>
+                <i data-lucide="arrow-down-to-line" aria-hidden="true"></i>
+                <span data-i18n="net.console.followLatest">Jump to latest</span>
+              </button>
+              <span id="networkPauseHint" class="pause-hint" hidden data-i18n="net.console.pausedHint">Display paused; data is still being received</span>
+            </div>
+
+            <div id="networkViewport" class="console-viewport network-viewport" tabindex="0">
+              <div id="networkEmptyState" class="empty-state">
+                <div class="empty-state__icon">
+                  <i data-lucide="cable" aria-hidden="true"></i>
+                </div>
+                <strong data-i18n="net.empty.title">Waiting for network data</strong>
+                <span data-i18n="net.empty.hint">Establish a TCP or UDP connection; sent and received data will appear here.</span>
+              </div>
+              <div id="networkLogContent" class="log-content network-log-content" aria-live="polite"></div>
+            </div>
+
+            <footer class="console-footer">
+              <div id="networkActivityMeter" class="activity-meter" aria-hidden="true"></div>
+              <div class="console-footer__meta">
+                <span id="networkReceiveModeLabel" data-i18n="net.footer.utf8Text">UTF-8 text</span>
+                <span id="networkLastActivityLabel" data-i18n="net.footer.noActivity">No activity</span>
+              </div>
+            </footer>
+          </section>
+
+          <section id="networkSendPanel" class="send-panel network-send-panel">
+            <header class="send-header">
+              <div>
+                <p class="section-kicker">TRANSMIT</p>
+                <h2 data-i18n="net.send.title">Network send</h2>
+              </div>
+
+              <div class="send-header__tools">
+                <div class="segmented" aria-label="Network send data mode" data-i18n-aria-label="net.send.modeLabel">
+                  <button
+                    class="segmented__button is-active"
+                    type="button"
+                    data-network-send-mode="text"
+                    data-i18n="common.mode.text"
+                  >
+                    Text
+                  </button>
+                  <button class="segmented__button" type="button" data-network-send-mode="hex">
+                    HEX
+                  </button>
+                </div>
+
+                <label class="inline-field">
+                  <span data-i18n="net.send.lineEnding">Line ending</span>
+                  <span class="select-shell select-shell--compact">
+                    <select id="networkLineEnding">
+                      <option value="none" selected data-i18n="common.none">None</option>
+                      <option value="lf">LF</option>
+                      <option value="cr">CR</option>
+                      <option value="crlf">CR LF</option>
+                    </select>
+                    <i data-lucide="chevron-down" aria-hidden="true"></i>
+                  </span>
+                </label>
+
+                <button
+                  id="networkTemplateButton"
+                  class="icon-button"
+                  type="button"
+                  title="Template variables"
+                  data-i18n-title="net.send.template"
+                  aria-label="Template variables"
+                  data-i18n-aria-label="net.send.template"
+                >
+                  <i data-lucide="braces" aria-hidden="true"></i>
+                </button>
+
+                <button
+                  id="networkResponseTestButton"
+                  class="icon-button"
+                  type="button"
+                  title="Response test"
+                  data-i18n-title="net.send.responseTest"
+                  aria-label="Response test"
+                  data-i18n-aria-label="net.send.responseTest"
+                  aria-pressed="false"
+                >
+                  <i data-lucide="gauge" aria-hidden="true"></i>
+                </button>
+
+                <button
+                  id="networkToggleSendPanelButton"
+                  class="icon-button"
+                  type="button"
+                  title="Collapse send area"
+                  data-i18n-title="net.send.collapse"
+                  aria-label="Collapse send area"
+                  data-i18n-aria-label="net.send.collapse"
+                  aria-pressed="false"
+                >
+                  <i data-lucide="chevrons-down" aria-hidden="true"></i>
+                </button>
+
+                <button
+                  id="networkClearInputButton"
+                  class="icon-button"
+                  type="button"
+                  title="Clear send content"
+                  data-i18n-title="net.send.clear"
+                  aria-label="Clear send content"
+                  data-i18n-aria-label="net.send.clear"
+                >
+                  <i data-lucide="eraser" aria-hidden="true"></i>
+                </button>
+              </div>
+            </header>
+
+            <div class="send-body">
+              <textarea
+                id="networkSendInput"
+                class="send-input"
+                rows="4"
+                placeholder="Enter data to send"
+                data-i18n-placeholder="net.send.placeholder"
+                spellcheck="false"
+              ></textarea>
+
+              <div class="send-controls send-controls--network">
+                <div class="auto-send">
+                  <label for="networkAutoSendInterval" data-i18n="net.send.autoSend">Auto send</label>
+                  <div class="auto-send__fields">
+                    <span class="input-shell input-shell--suffix">
+                      <input
+                        id="networkAutoSendInterval"
+                        type="number"
+                        min="10"
+                        step="10"
+                        value="1000"
+                        inputmode="numeric"
+                      />
+                      <span>ms</span>
+                    </span>
+                    <span class="input-shell input-shell--suffix" title="0 means unlimited" data-i18n-title="net.send.autoSendCountHint">
+                      <input
+                        id="networkAutoSendCount"
+                        type="number"
+                        min="0"
+                        step="1"
+                        value="0"
+                        inputmode="numeric"
+                        aria-label="Network auto send count"
+                        data-i18n-aria-label="net.send.autoSendCountLabel"
+                      />
+                      <span data-i18n="net.send.times">times</span>
+                    </span>
+                  </div>
+                  <button
+                    id="networkAutoSendButton"
+                    class="button button--ghost"
+                    type="button"
+                    aria-pressed="false"
+                  >
+                    <i data-lucide="timer" aria-hidden="true"></i>
+                    <span data-i18n="net.send.autoSendStart">Start</span>
+                  </button>
+                </div>
+
+                <button id="networkSendButton" class="button button--send" type="button" disabled>
+                  <i data-lucide="send-horizontal" aria-hidden="true"></i>
+                  <span data-i18n="net.send.send">Send data</span>
+                </button>
+              </div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="filterConfigDialog" class="settings-dialog" aria-labelledby="filterConfigTitle">
+      <div class="settings-dialog__surface">
+        <header class="settings-dialog__header">
+          <div>
+            <p class="section-kicker">FILTER</p>
+            <h2 id="filterConfigTitle" data-i18n="filter.title">Filter configuration</h2>
+          </div>
+          <button
+            id="closeFilterConfigButton"
+            class="icon-button icon-button--small"
+            type="button"
+            title="Close"
+            data-i18n-title="common.close"
+            aria-label="Close filter configuration"
+            data-i18n-aria-label="filter.closeAria"
+          >
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="settings-dialog__body">
+          <div class="switch-row settings-dialog__switches">
+            <label class="switch">
+              <input id="keywordCaseSensitiveToggle" type="checkbox" />
+              <span class="switch__track" aria-hidden="true"></span>
+              <span data-i18n="filter.caseSensitive">Case sensitive</span>
+            </label>
+            <label class="switch">
+              <input id="keywordWholeWordToggle" type="checkbox" />
+              <span class="switch__track" aria-hidden="true"></span>
+              <span data-i18n="filter.wholeWord">Whole word</span>
+            </label>
+          </div>
+        </div>
+
+        <footer class="settings-dialog__footer">
+          <button id="confirmFilterConfigButton" class="button button--primary" type="button" data-i18n="common.done">
+            Done
+          </button>
+        </footer>
+      </div>
+    </dialog>
+
+    <dialog
+      id="displaySettingsDialog"
+      class="settings-dialog display-settings-dialog"
+      aria-labelledby="displaySettingsTitle"
+    >
+      <div class="settings-dialog__surface">
+        <header class="settings-dialog__header">
+          <div>
+            <p class="section-kicker">DISPLAY</p>
+            <h2 id="displaySettingsTitle" data-i18n="display.title.serial">Serial display settings</h2>
+          </div>
+          <button
+            id="closeDisplaySettingsButton"
+            class="icon-button icon-button--small"
+            type="button"
+            title="Close"
+            data-i18n-title="common.close"
+            aria-label="Close display settings"
+            data-i18n-aria-label="display.closeAria"
+          >
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="settings-dialog__body">
+          <section class="display-settings-section" data-display-target="serial">
+            <div class="switch-row display-settings__switches">
+              <label class="switch">
+                <input id="timestampToggle" type="checkbox" checked />
+                <span class="switch__track" aria-hidden="true"></span>
+                <span data-i18n="display.timestamp">Timestamp</span>
+              </label>
+              <label class="switch">
+                <input id="autoScrollToggle" type="checkbox" checked />
+                <span class="switch__track" aria-hidden="true"></span>
+                <span data-i18n="display.autoScroll">Auto follow</span>
+              </label>
+              <label class="switch">
+                <input id="ansiToggle" type="checkbox" checked />
+                <span class="switch__track" aria-hidden="true"></span>
+                <span data-i18n="display.ansiColors">ANSI colors</span>
+              </label>
+              <label class="switch">
+                <input id="dualModeToggle" type="checkbox" />
+                <span class="switch__track" aria-hidden="true"></span>
+                <span data-i18n="display.dualMode">HEX dual column</span>
+              </label>
+            </div>
+
+            <div class="display-settings__field">
+              <span data-i18n="display.timeFormat">Time format</span>
+              <div class="mode-switch" role="radiogroup" aria-label="Serial timestamp format" data-i18n-aria-label="display.timestampModeLabel">
+                <button
+                  class="mode-switch__button is-active"
+                  type="button"
+                  data-timestamp-mode="absolute"
+                  aria-pressed="true"
+                  data-i18n="display.mode.absolute"
+                >
+                  Absolute
+                </button>
+                <button
+                  class="mode-switch__button"
+                  type="button"
+                  data-timestamp-mode="elapsed"
+                  aria-pressed="false"
+                  data-i18n="display.mode.elapsed"
+                >
+                  Elapsed
+                </button>
+                <button
+                  class="mode-switch__button"
+                  type="button"
+                  data-timestamp-mode="relative"
+                  aria-pressed="false"
+                  data-i18n="display.mode.relative"
+                >
+                  Relative
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section class="display-settings-section" data-display-target="network" hidden>
+            <div class="switch-row display-settings__switches">
+              <label class="switch">
+                <input id="networkTimestampToggle" type="checkbox" checked />
+                <span class="switch__track" aria-hidden="true"></span>
+                <span data-i18n="display.timestamp">Timestamp</span>
+              </label>
+              <label class="switch">
+                <input id="networkAutoScrollToggle" type="checkbox" checked />
+                <span class="switch__track" aria-hidden="true"></span>
+                <span data-i18n="display.autoScroll">Auto follow</span>
+              </label>
+              <label class="switch">
+                <input id="networkDualModeToggle" type="checkbox" />
+                <span class="switch__track" aria-hidden="true"></span>
+                <span data-i18n="display.dualMode">HEX dual column</span>
+              </label>
+            </div>
+
+            <div class="display-settings__field">
+              <span data-i18n="display.timeFormat">Time format</span>
+              <div class="mode-switch" role="radiogroup" aria-label="Network timestamp format" data-i18n-aria-label="display.networkTimestampModeLabel">
+                <button
+                  class="mode-switch__button is-active"
+                  type="button"
+                  data-network-timestamp-mode="absolute"
+                  aria-pressed="true"
+                  data-i18n="display.mode.absolute"
+                >
+                  Absolute
+                </button>
+                <button
+                  class="mode-switch__button"
+                  type="button"
+                  data-network-timestamp-mode="elapsed"
+                  aria-pressed="false"
+                  data-i18n="display.mode.elapsed"
+                >
+                  Elapsed
+                </button>
+                <button
+                  class="mode-switch__button"
+                  type="button"
+                  data-network-timestamp-mode="relative"
+                  aria-pressed="false"
+                  data-i18n="display.mode.relative"
+                >
+                  Relative
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <footer class="settings-dialog__footer">
+          <button id="confirmDisplaySettingsButton" class="button button--primary" type="button" data-i18n="common.done">
+            Done
+          </button>
+        </footer>
+      </div>
+    </dialog>
+
+    <dialog id="autoSaveDialog" class="settings-dialog auto-save-dialog" aria-labelledby="autoSaveTitle">
+      <div class="settings-dialog__surface">
+        <header class="settings-dialog__header">
+          <div>
+            <p class="section-kicker">AUTO SAVE</p>
+            <h2 id="autoSaveTitle" data-i18n="autosave.title">Log auto-save</h2>
+          </div>
+          <button
+            id="closeAutoSaveButton"
+            class="icon-button icon-button--small"
+            type="button"
+            title="Close"
+            data-i18n-title="common.close"
+            aria-label="Close log auto-save settings"
+            data-i18n-aria-label="autosave.closeAria"
+          >
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="settings-dialog__body">
+          <div class="switch-row">
+            <label class="switch">
+              <input id="autoSaveEnabledToggle" type="checkbox" />
+              <span class="switch__track" aria-hidden="true"></span>
+              <span data-i18n="autosave.enable">Enable auto-save</span>
+            </label>
+          </div>
+
+          <div class="field-grid auto-save-fields">
+            <label class="field">
+              <span data-i18n="autosave.rotation.label">Split mode</span>
+              <span class="select-shell select-shell--compact">
+                <select id="autoSaveRotationMode">
+                  <option value="size" data-i18n="autosave.rotation.size">By size</option>
+                  <option value="time" data-i18n="autosave.rotation.time">By time</option>
+                </select>
+                <i data-lucide="chevron-down" aria-hidden="true"></i>
+              </span>
+            </label>
+
+            <label class="field">
+              <span id="autoSaveLimitLabel" data-i18n="autosave.limitSize">Max file size (KB)</span>
+              <span class="input-shell input-shell--suffix">
+                <input
+                  id="autoSaveLimitInput"
+                  type="number"
+                  min="1"
+                  max="1048576"
+                  step="1"
+                  value="1024"
+                  inputmode="numeric"
+                />
+                <span id="autoSaveLimitUnit">KB</span>
+              </span>
+            </label>
+          </div>
+
+          <div class="auto-save-directory">
+            <button id="chooseAutoSaveDirectoryButton" class="button button--secondary" type="button">
+              <i data-lucide="download" aria-hidden="true"></i>
+              <span data-i18n="autosave.chooseDir">Choose folder</span>
+            </button>
+            <div class="auto-save-directory__summary">
+              <strong id="autoSaveDirectoryName" data-i18n="autosave.dirNone">No folder selected yet</strong>
+              <span id="autoSaveStatusText" data-i18n="autosave.status">Serial and network logs are written to separate files.</span>
+            </div>
+          </div>
+
+          <p id="autoSaveSupportText" class="auto-save-note" data-i18n="autosave.support">
+            Auto-save uses browser folder permissions; you must choose the folder again after
+            reopening the page.
+          </p>
+        </div>
+
+        <footer class="settings-dialog__footer">
+          <button id="cancelAutoSaveButton" class="button button--secondary" type="button" data-i18n="common.cancel">Cancel</button>
+          <button id="saveAutoSaveButton" class="button button--primary" type="button" data-i18n="common.save">Save</button>
+        </footer>
+      </div>
+    </dialog>
+
+    <dialog
+      id="advancedSerialSettingsDialog"
+      class="settings-dialog"
+      aria-labelledby="advancedSerialSettingsTitle"
+    >
+      <div class="settings-dialog__surface">
+        <header class="settings-dialog__header">
+          <div>
+            <p class="section-kicker">SERIAL</p>
+            <h2 id="advancedSerialSettingsTitle" data-i18n="serial.advanced.title">More serial settings</h2>
+          </div>
+          <button
+            id="closeAdvancedSerialSettingsButton"
+            class="icon-button icon-button--small"
+            type="button"
+            title="Close"
+            data-i18n-title="common.close"
+            aria-label="Close advanced serial settings"
+            data-i18n-aria-label="serial.advanced.closeAria"
+          >
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="settings-dialog__body">
+          <div class="field-grid">
+            <label class="field">
+              <span data-i18n="serial.advanced.dataBits">Data bits</span>
+              <span class="select-shell select-shell--compact">
+                <select id="dataBits">
+                  <option value="8" selected>8</option>
+                  <option value="7">7</option>
+                </select>
+                <i data-lucide="chevron-down" aria-hidden="true"></i>
+              </span>
+            </label>
+
+            <label class="field">
+              <span data-i18n="serial.advanced.stopBits">Stop bits</span>
+              <span class="select-shell select-shell--compact">
+                <select id="stopBits">
+                  <option value="1" selected>1</option>
+                  <option value="2">2</option>
+                </select>
+                <i data-lucide="chevron-down" aria-hidden="true"></i>
+              </span>
+            </label>
+
+            <label class="field">
+              <span data-i18n="serial.advanced.parity.label">Parity</span>
+              <span class="select-shell select-shell--compact">
+                <select id="parity">
+                  <option value="none" selected data-i18n="common.none">None</option>
+                  <option value="even" data-i18n="serial.advanced.parity.even">Even</option>
+                  <option value="odd" data-i18n="serial.advanced.parity.odd">Odd</option>
+                </select>
+                <i data-lucide="chevron-down" aria-hidden="true"></i>
+              </span>
+            </label>
+
+            <label class="field">
+              <span data-i18n="serial.advanced.flowControl.label">Flow control</span>
+              <span class="select-shell select-shell--compact">
+                <select id="flowControl">
+                  <option value="none" selected data-i18n="common.none">None</option>
+                  <option value="hardware" data-i18n="serial.advanced.flowControl.hardware">Hardware</option>
+                </select>
+                <i data-lucide="chevron-down" aria-hidden="true"></i>
+              </span>
+            </label>
+          </div>
+
+          <div class="switch-row settings-dialog__switches">
+            <label class="switch">
+              <input id="dtrToggle" type="checkbox" checked />
+              <span class="switch__track" aria-hidden="true"></span>
+              <span>DTR</span>
+            </label>
+            <label class="switch">
+              <input id="rtsToggle" type="checkbox" checked />
+              <span class="switch__track" aria-hidden="true"></span>
+              <span>RTS</span>
+            </label>
+          </div>
+        </div>
+
+        <footer class="settings-dialog__footer">
+          <button id="confirmAdvancedSerialSettingsButton" class="button button--primary" type="button" data-i18n="common.done">
+            Done
+          </button>
+        </footer>
+      </div>
+    </dialog>
+
+    <dialog id="bridgeDialog" class="settings-dialog bridge-dialog" aria-labelledby="bridgeDialogTitle">
+      <div class="settings-dialog__surface">
+        <header class="settings-dialog__header">
+          <div>
+            <p class="section-kicker">BRIDGE</p>
+            <h2 id="bridgeDialogTitle" data-i18n="bridge.title">Link bridge</h2>
+          </div>
+          <button
+            id="closeBridgeDialogButton"
+            class="icon-button icon-button--small"
+            type="button"
+            title="Close"
+            data-i18n-title="common.close"
+            aria-label="Close link bridge"
+            data-i18n-aria-label="bridge.closeAria"
+          >
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="settings-dialog__body">
+          <div id="bridgeStatusCard" class="bridge-status">
+            <span id="bridgeStatusBadge" class="mini-badge mini-badge--idle" data-i18n="bridge.state.stopped">Not started</span>
+            <p id="bridgeStatusText" data-i18n="bridge.statusHint">Connect serial and network to start.</p>
+          </div>
+
+          <div class="bridge-endpoints">
+            <div class="bridge-endpoint">
+              <span class="bridge-endpoint__label" data-i18n="serial.tab">Serial</span>
+              <strong id="bridgeSerialEndpoint">Not connected</strong>
+            </div>
+            <div class="bridge-endpoint">
+              <span class="bridge-endpoint__label" data-i18n="net.tab">Network</span>
+              <strong id="bridgeNetworkEndpoint">Not connected</strong>
+            </div>
+          </div>
+
+          <div class="bridge-directions">
+            <label class="bridge-direction">
+              <input id="bridgeSerialToNetworkToggle" type="checkbox" checked />
+              <span>
+                <strong data-i18n="bridge.dir.serialToNet">Serial → Network</strong>
+                <small id="bridgeSerialToNetworkCounter">0 B</small>
+              </span>
+            </label>
+            <label class="bridge-direction">
+              <input id="bridgeNetworkToSerialToggle" type="checkbox" checked />
+              <span>
+                <strong data-i18n="bridge.dir.netToSerial">Network → Serial</strong>
+                <small id="bridgeNetworkToSerialCounter">0 B</small>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <footer class="settings-dialog__footer">
+          <button id="confirmBridgeDialogButton" class="button button--secondary" type="button" data-i18n="common.close">
+            Close
+          </button>
+          <button id="bridgeToggleButton" class="button button--primary" type="button" disabled data-i18n="bridge.start">
+            Start bridge
+          </button>
+        </footer>
+      </div>
+    </dialog>
+
+    <dialog id="macroEditorDialog" class="settings-dialog" aria-labelledby="macroEditorTitle">
+      <div class="settings-dialog__surface">
+        <header class="settings-dialog__header">
+          <div>
+            <p class="section-kicker">MACRO</p>
+            <h2 id="macroEditorTitle" data-i18n="macro.editor.title">Macro settings</h2>
+          </div>
+          <button
+            id="closeMacroEditorButton"
+            class="icon-button icon-button--small"
+            type="button"
+            title="Close"
+            data-i18n-title="common.close"
+            aria-label="Close Macro settings"
+            data-i18n-aria-label="macro.editor.closeAria"
+          >
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="settings-dialog__body">
+          <label class="field field--wide">
+            <span data-i18n="macro.editor.name">Name</span>
+            <span class="input-shell">
+              <input id="macroNameInput" type="text" maxlength="60" spellcheck="false" />
+            </span>
+          </label>
+
+          <div class="field-grid macro-delay-grid">
+            <label class="field">
+              <span data-i18n="macro.editor.commandDelay">Command interval (ms)</span>
+              <span class="input-shell">
+                <input id="macroCommandDelayInput" type="number" min="0" max="60000" step="50" />
+              </span>
+            </label>
+
+            <label class="field">
+              <span data-i18n="macro.editor.characterDelay">Character interval (ms)</span>
+              <span class="input-shell">
+                <input id="macroCharacterDelayInput" type="number" min="0" max="5000" step="1" />
+              </span>
+            </label>
+          </div>
+
+          <div class="macro-step-preview">
+            <div class="macro-step-preview__header">
+              <strong data-i18n="macro.editor.steps">Recorded content</strong>
+              <span id="macroStepCount">0 steps</span>
+            </div>
+            <div id="macroStepList" class="macro-step-list"></div>
+          </div>
+        </div>
+
+        <footer class="settings-dialog__footer">
+          <button id="macroEditorCancelButton" class="button button--secondary" type="button" data-i18n="common.cancel">Cancel</button>
+          <button id="macroEditorSaveButton" class="button button--primary" type="button" data-i18n="common.save">Save</button>
+        </footer>
+      </div>
+    </dialog>
+
+    <dialog
+      id="templateVariablesDialog"
+      class="settings-dialog template-dialog"
+      aria-labelledby="templateVariablesTitle"
+    >
+      <div class="settings-dialog__surface">
+        <header class="settings-dialog__header">
+          <div>
+            <p class="section-kicker">TEMPLATE</p>
+            <h2 id="templateVariablesTitle" data-i18n="template.title">Send template variables</h2>
+          </div>
+          <button
+            id="closeTemplateVariablesButton"
+            class="icon-button icon-button--small"
+            type="button"
+            title="Close"
+            data-i18n-title="common.close"
+            aria-label="Close send template variables"
+            data-i18n-aria-label="template.closeAria"
+          >
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="settings-dialog__body">
+          <section class="template-section">
+            <div class="template-section__heading">
+              <h3 data-i18n="template.builtin">Built-in variables</h3>
+              <span id="templateTargetLabel" class="template-target-label" data-i18n="template.target.serial">Insert into serial send area</span>
+            </div>
+            <div id="templateBuiltinList" class="template-token-list"></div>
+          </section>
+
+          <section class="template-section">
+            <div class="template-section__heading">
+              <h3 data-i18n="template.custom">Custom variables</h3>
+              <button id="addTemplateVariableButton" class="quick-send-add" type="button">
+                <i data-lucide="plus" aria-hidden="true"></i>
+                <span data-i18n="template.add">Add</span>
+              </button>
+            </div>
+            <div id="templateVariableList" class="template-variable-list"></div>
+          </section>
+        </div>
+
+        <footer class="settings-dialog__footer">
+          <button id="cancelTemplateVariablesButton" class="button button--secondary" type="button" data-i18n="common.cancel">
+            Cancel
+          </button>
+          <button id="saveTemplateVariablesButton" class="button button--primary" type="button" data-i18n="common.save">
+            Save
+          </button>
+        </footer>
+      </div>
+    </dialog>
+
+    <dialog
+      id="responseTestDialog"
+      class="settings-dialog response-test-dialog"
+      aria-labelledby="responseTestTitle"
+    >
+      <div class="settings-dialog__surface">
+        <header class="settings-dialog__header">
+          <div>
+            <p class="section-kicker">RESPONSE</p>
+            <h2 id="responseTestTitle" data-i18n="response.title">Expected response &amp; latency test</h2>
+          </div>
+          <button
+            id="closeResponseTestButton"
+            class="icon-button icon-button--small"
+            type="button"
+            title="Close"
+            data-i18n-title="common.close"
+            aria-label="Close response test"
+            data-i18n-aria-label="response.closeAria"
+          >
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="settings-dialog__body">
+          <div class="response-test-status">
+            <div class="response-test-status__heading">
+              <span id="responseTestTargetLabel" data-i18n="response.target.serial">Serial response test</span>
+              <span id="responseTestBadge" class="mini-badge mini-badge--idle" data-i18n="response.badge.idle">Not tested</span>
+            </div>
+            <div class="response-test-latency">
+              <span data-i18n="response.latency">Round-trip latency</span>
+              <strong id="responseLatency">--</strong>
+            </div>
+            <p id="responsePreview" data-i18n="response.preview">Send the current send-area content and wait for a match.</p>
+          </div>
+
+          <div class="response-test-fields">
+            <label class="field field--wide">
+              <span data-i18n="response.expected">Expected response</span>
+              <span class="input-shell">
+                <input
+                  id="responseExpectedInput"
+                  type="text"
+                  maxlength="200"
+                  value="OK"
+                  spellcheck="false"
+                />
+              </span>
+            </label>
+
+            <label class="field">
+              <span data-i18n="response.timeout">Timeout (ms)</span>
+              <span class="input-shell">
+                <input
+                  id="responseTimeoutInput"
+                  type="number"
+                  min="10"
+                  max="120000"
+                  step="10"
+                  value="1000"
+                  inputmode="numeric"
+                />
+              </span>
+            </label>
+
+            <label class="switch response-test-case">
+              <input id="responseCaseSensitiveToggle" type="checkbox" />
+              <span class="switch__track" aria-hidden="true"></span>
+              <span data-i18n="response.caseSensitive">Case sensitive</span>
+            </label>
+          </div>
+        </div>
+
+        <footer class="settings-dialog__footer">
+          <button id="closeResponseTestDialogButton" class="button button--secondary" type="button" data-i18n="common.close">
+            Close
+          </button>
+          <button id="startResponseTestButton" class="button button--primary" type="button" data-i18n="response.sendAndWait">
+            Send and wait
+          </button>
+        </footer>
+      </div>
+    </dialog>
+
+    <dialog
+      id="sshConnectDialog"
+      class="settings-dialog ssh-connect-dialog"
+      aria-labelledby="sshConnectDialogTitle"
+    >
+      <div class="settings-dialog__surface">
+        <header class="settings-dialog__header">
+          <div>
+            <p class="section-kicker">SSH</p>
+            <h2 id="sshConnectDialogTitle" data-i18n="ssh.connect.title">SSH connection settings</h2>
+          </div>
+          <button
+            id="closeSshConnectDialogButton"
+            class="icon-button icon-button--small"
+            type="button"
+            title="Close"
+            data-i18n-title="common.close"
+            aria-label="Close SSH connection settings"
+            data-i18n-aria-label="ssh.connect.closeAria"
+          >
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="settings-dialog__body">
+          <div id="sshPresetPicker" class="preset-picker ssh-preset-picker">
+            <span class="select-shell preset-picker__select">
+              <select id="sshPresetSelect" aria-label="SSH connection preset" data-i18n-aria-label="ssh.preset.selectLabel">
+                <option value="" data-i18n="ssh.preset.emptyOption">SSH preset</option>
+              </select>
+              <i data-lucide="chevron-down" aria-hidden="true"></i>
+            </span>
+            <button
+              id="saveSshPresetButton"
+              class="icon-button"
+              type="button"
+              title="Save current SSH configuration"
+              data-i18n-title="ssh.preset.save"
+              aria-label="Save current SSH configuration"
+              data-i18n-aria-label="ssh.preset.save"
+            >
+              <i data-lucide="bookmark-plus" aria-hidden="true"></i>
+            </button>
+            <button
+              id="deleteSshPresetButton"
+              class="icon-button"
+              type="button"
+              title="Delete selected SSH preset"
+              data-i18n-title="ssh.preset.delete"
+              aria-label="Delete selected SSH preset"
+              data-i18n-aria-label="ssh.preset.delete"
+              disabled
+            >
+              <i data-lucide="trash-2" aria-hidden="true"></i>
+            </button>
+          </div>
+
+          <div id="networkSshFields" class="field-grid network-fields ssh-fields">
+            <label class="field field--wide">
+              <span data-i18n="ssh.field.alias">Alias</span>
+              <span class="input-shell">
+                <input id="sshAlias" type="text" maxlength="80" spellcheck="false" />
+              </span>
+            </label>
+
+            <label class="field">
+              <span data-i18n="ssh.field.host">Host</span>
+              <span class="input-shell">
+                <input id="sshHost" type="text" value="192.168.1.2" spellcheck="false" />
+              </span>
+            </label>
+
+            <label class="field">
+              <span data-i18n="ssh.field.port">Port</span>
+              <span class="input-shell">
+                <input
+                  id="sshPort"
+                  type="number"
+                  min="1"
+                  max="65535"
+                  value="22"
+                  inputmode="numeric"
+                />
+              </span>
+            </label>
+
+            <label class="field field--wide">
+              <span data-i18n="ssh.field.username">Username</span>
+              <span class="input-shell">
+                <input
+                  id="sshUsername"
+                  type="text"
+                  value="root"
+                  spellcheck="false"
+                  autocomplete="username"
+                />
+              </span>
+            </label>
+
+            <label class="field field--wide">
+              <span data-i18n="ssh.field.password">Password</span>
+              <span class="input-shell">
+                <input
+                  id="sshPassword"
+                  type="password"
+                  spellcheck="false"
+                  autocomplete="current-password"
+                />
+              </span>
+            </label>
+
+            <label class="switch ssh-password-save">
+              <input id="sshSavePasswordToggle" type="checkbox" />
+              <span class="switch__track" aria-hidden="true"></span>
+              <span data-i18n="ssh.field.savePassword">Save password</span>
+            </label>
+
+            <p class="ssh-security-note" data-i18n="ssh.connect.securityNote">
+              Passwords are used for this connection only by default; when “Save password” is
+              checked they are stored in this browser together with the preset. The host SHA-256
+              fingerprint is shown on the first connection.
+            </p>
+          </div>
+        </div>
+
+        <footer class="settings-dialog__footer">
+          <button
+            id="cancelSshConnectDialogButton"
+            class="button button--secondary"
+            type="button"
+            data-i18n="common.cancel"
+          >
+            Cancel
+          </button>
+          <button
+            id="confirmSshConnectDialogButton"
+            class="button button--primary"
+            type="button"
+            data-i18n="ssh.connect.submit"
+          >
+            Connect SSH
+          </button>
+        </footer>
+      </div>
+    </dialog>
+
+    <dialog
+      id="sshFileDialog"
+      class="settings-dialog ssh-file-dialog"
+      aria-labelledby="sshFileDialogTitle"
+    >
+      <div class="settings-dialog__surface">
+        <header class="settings-dialog__header">
+          <div>
+            <p class="section-kicker">SFTP</p>
+            <h2 id="sshFileDialogTitle" data-i18n="ssh.file.title">Remote files</h2>
+          </div>
+          <button
+            id="closeSshFileButton"
+            class="icon-button icon-button--small"
+            type="button"
+            title="Close"
+            data-i18n-title="common.close"
+            aria-label="Close remote file panel"
+            data-i18n-aria-label="ssh.file.closeAria"
+          >
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="settings-dialog__body ssh-file-dialog__body">
+          <div class="ssh-file-pathbar">
+            <button
+              id="sshFileParentButton"
+              class="icon-button"
+              type="button"
+              title="Parent directory"
+              data-i18n-title="ssh.file.parent"
+              aria-label="Parent directory"
+              data-i18n-aria-label="ssh.file.parent"
+            >
+              <i data-lucide="arrow-up" aria-hidden="true"></i>
+            </button>
+            <span class="input-shell ssh-file-pathbar__input">
+              <input
+                id="sshFilePath"
+                type="text"
+                value="."
+                spellcheck="false"
+                aria-label="Remote directory path" data-i18n-aria-label="ssh.file.pathLabel"
+              />
+            </span>
+            <button id="sshFileGoButton" class="icon-button" type="button" title="Open path" data-i18n-title="ssh.file.go" aria-label="Open path" data-i18n-aria-label="ssh.file.go">
+              <i data-lucide="check" aria-hidden="true"></i>
+            </button>
+            <button
+              id="sshFileRefreshButton"
+              class="icon-button"
+              type="button"
+              title="Refresh directory"
+              data-i18n-title="ssh.file.refresh"
+              aria-label="Refresh directory"
+              data-i18n-aria-label="ssh.file.refresh"
+            >
+              <i data-lucide="refresh-cw" aria-hidden="true"></i>
+            </button>
+          </div>
+
+          <div class="ssh-file-workspace">
+            <aside class="ssh-file-places" aria-label="Remote places" data-i18n-aria-label="ssh.file.placesLabel">
+              <div class="ssh-file-places__header">
+                <div class="ssh-file-places__heading">
+                  <span data-i18n="ssh.file.quickPaths">Quick paths</span>
+                  <small id="sshFilePresetLabel" data-i18n="ssh.file.presetNone">No SSH preset selected</small>
+                </div>
+                <button
+                  id="sshFileAddPlaceButton"
+                  class="icon-button icon-button--small"
+                  type="button"
+                  title="Add the current absolute path to quick paths"
+                  data-i18n-title="ssh.file.addPlace"
+                  aria-label="Add quick path"
+                  data-i18n-aria-label="ssh.file.addPlaceAria"
+                >
+                  <i data-lucide="plus" aria-hidden="true"></i>
+                </button>
+              </div>
+              <div id="sshFilePlaceList" class="ssh-file-place-list"></div>
+              <div id="sshFilePlaceEmpty" class="ssh-file-place-empty" data-i18n="ssh.file.placesEmpty">
+                No quick paths yet
+              </div>
+            </aside>
+
+            <section class="ssh-file-main">
+              <div class="ssh-file-actions">
+                <button id="sshFileUploadButton" class="button button--secondary" type="button">
+                  <i data-lucide="upload" aria-hidden="true"></i>
+                  <span data-i18n="ssh.file.upload">Upload</span>
+                </button>
+                <button id="sshFileDownloadButton" class="button button--secondary" type="button">
+                  <i data-lucide="download" aria-hidden="true"></i>
+                  <span data-i18n="ssh.file.download">Download</span>
+                </button>
+                <button id="sshFileMkdirButton" class="button button--secondary" type="button">
+                  <i data-lucide="folder-plus" aria-hidden="true"></i>
+                  <span data-i18n="ssh.file.mkdir">New folder</span>
+                </button>
+                <button id="sshFileRenameButton" class="button button--secondary" type="button">
+                  <i data-lucide="pencil" aria-hidden="true"></i>
+                  <span data-i18n="ssh.file.rename">Rename</span>
+                </button>
+                <button id="sshFileDeleteButton" class="button button--danger" type="button">
+                  <i data-lucide="trash-2" aria-hidden="true"></i>
+                  <span data-i18n="ssh.file.delete">Delete</span>
+                </button>
+              </div>
+
+              <div class="ssh-file-progress" id="sshFileProgress" hidden>
+                <div class="ssh-file-progress__labels">
+                  <span id="sshFileProgressText" data-i18n="ssh.file.transferWaiting">Waiting for transfer</span>
+                  <strong id="sshFileProgressValue">0%</strong>
+                </div>
+                <progress id="sshFileProgressBar" max="100" value="0"></progress>
+              </div>
+
+              <div class="ssh-file-statusbar">
+                <span id="sshFileStatus" data-i18n="ssh.file.statusHint">Select a file or folder</span>
+                <button id="sshFileCancelButton" class="button button--danger" type="button" hidden data-i18n="ssh.file.cancelTransfer">
+                  Cancel transfer
+                </button>
+              </div>
+
+              <div class="ssh-file-list-header" aria-hidden="true">
+                <span data-i18n="ssh.file.col.name">Name</span>
+                <span data-i18n="ssh.file.col.size">Size (KB)</span>
+                <span data-i18n="ssh.file.col.mtime">Modified</span>
+              </div>
+              <div
+                id="sshFileList"
+                class="ssh-file-list"
+                role="listbox"
+                aria-label="Remote directory contents" data-i18n-aria-label="ssh.file.listLabel"
+              ></div>
+              <div id="sshFileEmpty" class="ssh-file-empty" hidden data-i18n="ssh.file.empty">Directory is empty</div>
+            </section>
+          </div>
+          <input id="sshFileUploadInput" type="file" multiple hidden />
+        </div>
+
+        <footer class="settings-dialog__footer">
+          <button class="button button--secondary" type="button" data-close-ssh-file data-i18n="common.close">Close</button>
+        </footer>
+      </div>
+    </dialog>
+
+    <dialog id="agentActivityDialog" class="settings-dialog agent-activity-dialog">
+      <div class="settings-dialog__surface">
+        <header class="settings-dialog__header">
+          <div>
+            <p class="section-kicker">AI CONTROL</p>
+            <h2 data-i18n="agent.activity.title">AI operation records</h2>
+          </div>
+          <button
+            id="closeAgentActivityButton"
+            class="icon-button icon-button--small"
+            type="button"
+            title="Close"
+            data-i18n-title="common.close"
+            aria-label="Close AI activity panel"
+            data-i18n-aria-label="agent.activity.closeAria"
+          >
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="settings-dialog__body agent-activity-body">
+          <div class="agent-activity-tabs" role="tablist" aria-label="AI panel" data-i18n-aria-label="agent.tabs.label">
+            <button
+              id="agentActivityRecordsTab"
+              class="agent-activity-tab is-active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-controls="agentActivityRecordsPanel"
+              data-agent-activity-view="records"
+            >
+              <i data-lucide="activity" aria-hidden="true"></i>
+              <span data-i18n="agent.tab.records">Operation records</span>
+            </button>
+            <button
+              id="agentActivityControlTab"
+              class="agent-activity-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="agentActivityControlPanel"
+              data-agent-activity-view="control"
+            >
+              <i data-lucide="settings-2" aria-hidden="true"></i>
+              <span data-i18n="agent.tab.control">Control settings</span>
+            </button>
+          </div>
+
+          <section
+            id="agentActivityRecordsPanel"
+            class="agent-activity-pane agent-activity-records-pane"
+            role="tabpanel"
+            aria-labelledby="agentActivityRecordsTab"
+          >
+            <div class="agent-activity-heading">
+              <div>
+                <strong data-i18n="agent.tab.records">Operation records</strong>
+                <span data-i18n="agent.records.hint">The most recent 80 AI requests. Expand an entry to see parameters, results, risks, and the evidence entry.</span>
+              </div>
+              <button id="agentClearActivityButton" class="button button--secondary" type="button" data-i18n="agent.records.clear">
+                Clear records
+              </button>
+            </div>
+
+            <div id="agentActivityList" class="agent-activity-list"></div>
+            <div id="agentActivityEmpty" class="agent-activity-empty" data-i18n="agent.records.empty">
+              No AI operation records yet
+            </div>
+          </section>
+
+          <section
+            id="agentActivityControlPanel"
+            class="agent-activity-pane agent-activity-control-pane"
+            role="tabpanel"
+            aria-labelledby="agentActivityControlTab"
+            hidden
+          >
+            <section class="agent-session-card">
+              <div class="agent-session-card__main">
+                <span data-i18n="agent.session.label">Current session</span>
+                <strong id="agentSessionLabelText" data-i18n="agent.session.defaultName">LinkTK page</strong>
+                <small id="agentSessionIdText" data-i18n="agent.session.notInitialized">Not initialized</small>
+              </div>
+              <button
+                id="agentSessionRenameButton"
+                class="icon-button"
+                type="button"
+                title="Rename current AI session"
+                data-i18n-title="agent.session.rename"
+                aria-label="Rename current AI session"
+                data-i18n-aria-label="agent.session.rename"
+              >
+                <i data-lucide="pencil" aria-hidden="true"></i>
+              </button>
+            </section>
+
+            <div class="agent-session-facts">
+              <div>
+                <span data-i18n="agent.session.targetLabel">Operation target</span>
+                <strong id="agentSessionTarget">Serial not connected</strong>
+              </div>
+              <div>
+                <span data-i18n="agent.session.controlLabel">Control state</span>
+                <strong id="agentControlState">AI offline</strong>
+                <small id="agentControlHint">Waiting for the local control bridge and the AI controller.</small>
+              </div>
+              <div>
+                <span data-i18n="agent.session.approvalLabel">Approval policy</span>
+                <select id="agentApprovalMode" aria-label="AI operation approval policy" data-i18n-aria-label="agent.approval.modeLabel">
+                  <option value="read-only" data-i18n="agent.approval.readOnly">Read-only, reject writes</option>
+                  <option value="confirm-writes" data-i18n="agent.approval.confirmWrites">Writes require confirmation</option>
+                  <option value="trusted" data-i18n="agent.approval.trusted">Fully trust this session</option>
+                </select>
+              </div>
+              <div>
+                <span data-i18n="agent.session.leaseLabel">Session lease</span>
+                <strong id="agentLeaseState">Idle</strong>
+                <small id="agentLeaseMeta">No controller currently owns this session.</small>
+              </div>
+            </div>
+
+            <section class="agent-native-card agent-connect-card">
+              <div>
+                <span data-i18n="agent.connect.label">AI access</span>
+                <strong data-i18n="agent.connect.title">Copy MCP configuration</strong>
+                <small data-i18n="agent.connect.hint">
+                  Paste into an MCP-capable AI client such as Codex or Claude Desktop; once
+                  connected, the AI's serial, network, and SSH operations are shown here the whole
+                  time.
+                </small>
+              </div>
+              <button
+                id="agentCopyMcpConfigButton"
+                class="button button--secondary"
+                type="button"
+              >
+                <i data-lucide="copy" aria-hidden="true"></i>
+                <span data-i18n="agent.connect.copy">Copy configuration</span>
+              </button>
+            </section>
+
+            <div class="agent-native-tools">
+              <section class="agent-native-card">
+                <div>
+                  <span data-i18n="agent.profile.label">Device profile</span>
+                  <strong id="agentDeviceProfileName">No profile selected</strong>
+                  <small id="agentDeviceProfileSummary">AI uses the generic device context.</small>
+                </div>
+                <button id="agentDeviceProfileButton" class="button button--secondary" type="button" data-i18n="agent.profile.configure">
+                  Configure
+                </button>
+              </section>
+              <section class="agent-native-card">
+                <div>
+                  <span data-i18n="agent.tasks.label">Task templates</span>
+                  <strong id="agentTaskCount">0 task templates</strong>
+                  <small data-i18n="agent.tasks.hint">Save tasks from operation records, or create multi-step tasks over MCP.</small>
+                </div>
+                <button id="agentCreateTaskButton" class="button button--secondary" type="button" data-i18n="agent.tasks.createFromRecent">
+                  Create from recent operation
+                </button>
+              </section>
+            </div>
+
+            <div class="agent-control-actions">
+              <button id="agentPauseButton" class="button button--secondary" type="button">
+                <i data-lucide="pause" aria-hidden="true"></i>
+                <span data-i18n="agent.control.pause">Pause AI</span>
+              </button>
+              <button
+                id="agentCancelOperationButton"
+                class="button button--secondary agent-cancel-operation-button"
+                type="button"
+                disabled
+              >
+                <i data-lucide="square" aria-hidden="true"></i>
+                <span data-i18n="agent.control.cancel">Cancel current operation</span>
+              </button>
+            </div>
+
+            <section id="agentActiveOperation" class="agent-active-operation" hidden>
+              <div>
+                <span id="agentActiveOperationStatus" data-i18n="agent.activeOperation.waiting">Waiting for operation</span>
+                <strong id="agentActiveOperationCommand" data-i18n="common.none">None</strong>
+              </div>
+              <small id="agentActiveOperationDetail"></small>
+            </section>
+
+            <div class="agent-activity-heading">
+              <div>
+                <strong data-i18n="agent.tasks.label">Task templates</strong>
+                <span data-i18n="agent.tasks.headingHint">Saved multi-step operations can be replayed by the AI or the page, and keep writing evidence records.</span>
+              </div>
+            </div>
+            <div id="agentTaskList" class="agent-task-list"></div>
+            <div id="agentTaskEmpty" class="agent-activity-empty" data-i18n="agent.tasks.empty">No task templates yet</div>
+          </section>
+        </div>
+
+        <footer class="settings-dialog__footer">
+          <button class="button button--secondary" type="button" data-close-agent-activity data-i18n="common.close">
+            Close
+          </button>
+        </footer>
+      </div>
+    </dialog>
+
+    <dialog id="agentDeviceProfileDialog" class="settings-dialog agent-device-profile-dialog">
+      <div class="settings-dialog__surface">
+        <header class="settings-dialog__header">
+          <div>
+            <p class="section-kicker">DEVICE PROFILE</p>
+            <h2 data-i18n="agentProfile.title">Device profile</h2>
+          </div>
+          <button
+            id="closeAgentDeviceProfileButton"
+            class="icon-button icon-button--small"
+            type="button"
+            title="Close"
+            data-i18n-title="common.close"
+            aria-label="Close device profile"
+            data-i18n-aria-label="agentProfile.closeAria"
+            data-close-agent-profile
+          >
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </header>
+        <div class="settings-dialog__body agent-profile-body">
+          <label class="agent-profile-wide-field">
+            <span data-i18n="agentProfile.existing">Existing profile</span>
+            <select id="agentProfileSelect">
+              <option value="" data-i18n="agentProfile.newOption">New profile</option>
+            </select>
+          </label>
+          <div class="settings-dialog__grid">
+            <label>
+              <span data-i18n="agentProfile.name">Profile name</span>
+              <input id="agentProfileNameInput" type="text" maxlength="80" placeholder="e.g. EVB-A1 Linux" data-i18n-placeholder="agentProfile.namePlaceholder" />
+            </label>
+            <label>
+              <span data-i18n="agentProfile.board">Board name</span>
+              <input id="agentProfileBoardInput" type="text" maxlength="120" placeholder="e.g. EVB-A1" data-i18n-placeholder="agentProfile.boardPlaceholder" />
+            </label>
+            <label>
+              <span data-i18n="agentProfile.transport.label">Applicable link</span>
+              <select id="agentProfileTransport">
+                <option value="any" data-i18n="agentProfile.transport.any">Any</option>
+                <option value="serial" data-i18n="serial.tab">Serial</option>
+                <option value="network" data-i18n="net.tab">Network</option>
+                <option value="ssh">SSH</option>
+              </select>
+            </label>
+            <label>
+              <span data-i18n="agentProfile.shellType">Shell type</span>
+              <select id="agentProfileShellType">
+                <option value="linux">Linux Shell</option>
+                <option value="rtos">RTOS Shell</option>
+                <option value="uboot">U-Boot</option>
+                <option value="raw" data-i18n="agentProfile.shell.raw">Raw device / protocol</option>
+              </select>
+            </label>
+            <label>
+              <span data-i18n="agentProfile.lineEnding.label">AI default line ending</span>
+              <select id="agentProfileLineEnding">
+                <option value="lf">LF</option>
+                <option value="crlf">CRLF</option>
+                <option value="cr">CR</option>
+                <option value="none" data-i18n="agentProfile.lineEnding.none">None</option>
+              </select>
+            </label>
+            <label>
+              <span data-i18n="agentProfile.promptPattern">Prompt regex</span>
+              <input id="agentProfilePromptPattern" type="text" maxlength="400" placeholder="e.g. root@[^#]+#" data-i18n-placeholder="agentProfile.promptPlaceholder" />
+            </label>
+            <label>
+              <span data-i18n="agentProfile.loginPattern">Login prompt regex</span>
+              <input id="agentProfileLoginPromptPattern" type="text" maxlength="400" placeholder="e.g. login:" data-i18n-placeholder="agentProfile.loginPlaceholder" />
+            </label>
+            <label>
+              <span data-i18n="agentProfile.startupPattern">Startup complete regex</span>
+              <input id="agentProfileStartupPattern" type="text" maxlength="400" placeholder="e.g. login:|# " data-i18n-placeholder="agentProfile.startupPlaceholder" />
+            </label>
+          </div>
+          <label class="agent-profile-wide-field">
+            <span data-i18n="agentProfile.commonCommands">Common commands, one per line</span>
+            <textarea id="agentProfileCommonCommands" rows="4" placeholder="help&#10;ps&#10;dmesg"></textarea>
+          </label>
+          <label class="agent-profile-wide-field">
+            <span data-i18n="agentProfile.dangerousPatterns">Dangerous command or path patterns, one per line</span>
+            <textarea id="agentProfileDangerousPatterns" rows="4" placeholder="rm -rf&#10;mkfs&#10;flash_erase"></textarea>
+          </label>
+          <label class="agent-profile-wide-field">
+            <span data-i18n="agentProfile.description">Notes</span>
+            <textarea id="agentProfileDescription" rows="3" placeholder="Startup procedure, login flow, cautions" data-i18n-placeholder="agentProfile.descriptionPlaceholder"></textarea>
+          </label>
+        </div>
+        <footer class="settings-dialog__footer">
+          <button id="agentProfileDeleteButton" class="button button--danger" type="button" data-i18n="agentProfile.delete">
+            Delete
+          </button>
+          <button class="button button--secondary" type="button" data-close-agent-profile data-i18n="common.cancel">
+            Cancel
+          </button>
+          <button id="agentProfileSaveButton" class="button button--primary" type="button" data-i18n="agentProfile.save">
+            Save and set as current
+          </button>
+        </footer>
+      </div>
+    </dialog>
+
+    <dialog id="agentApprovalDialog" class="settings-dialog agent-approval-dialog">
+      <div class="settings-dialog__surface">
+        <header class="settings-dialog__header">
+          <div>
+            <p class="section-kicker">AI APPROVAL</p>
+            <h2 data-i18n="agentApproval.title">AI request to perform an operation</h2>
+          </div>
+        </header>
+        <div class="settings-dialog__body">
+          <div class="agent-approval-summary">
+            <div>
+              <span data-i18n="agentApproval.command">Operation</span>
+              <strong id="agentApprovalCommand" data-i18n="agentApproval.commandUnknown">Unknown operation</strong>
+            </div>
+            <div>
+              <span data-i18n="agentApproval.session">Target session</span>
+              <strong id="agentApprovalSession" data-i18n="agent.session.defaultName">LinkTK page</strong>
+            </div>
+            <div>
+              <span data-i18n="agentApproval.target">Target</span>
+              <strong id="agentApprovalTarget" data-i18n="agentApproval.targetNone">Not connected</strong>
+            </div>
+            <div>
+              <span data-i18n="agentApproval.window">Approval window</span>
+              <strong id="agentApprovalCountdown" data-i18n="agentApproval.waiting">Waiting for approval</strong>
+            </div>
+          </div>
+          <p id="agentApprovalDetail" class="agent-approval-detail"></p>
+          <div class="agent-approval-warning">
+            <i data-lucide="triangle-alert" aria-hidden="true"></i>
+            <span id="agentApprovalWarningText" data-i18n="agentApproval.warning">This operation may change device state.</span>
+          </div>
+        </div>
+        <footer class="settings-dialog__footer">
+          <button id="agentApprovalDenyButton" class="button button--secondary" type="button" data-i18n="agentApproval.deny">
+            Deny
+          </button>
+          <button id="agentApprovalAllowButton" class="button button--primary" type="button" data-i18n="agentApproval.allow">
+            Allow once
+          </button>
+        </footer>
+      </div>
+    </dialog>
+
+    <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="false"></div>
+
+    <script type="module" src="/src/app.js"></script>
+  </body>
+</html>

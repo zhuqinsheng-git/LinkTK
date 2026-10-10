@@ -1,0 +1,53 @@
+{
+  "name": "linktk",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser-based serial / TCP / UDP / SSH debugging console with a built-in MCP control channel for AI agents.",
+  "license": "MIT",
+  "keywords": [
+    "serial",
+    "web-serial",
+    "ssh",
+    "sftp",
+    "ymodem",
+    "mcp",
+    "terminal",
+    "tcp",
+    "udp",
+    "debugging"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "agent": "node tools/linktk-agent.mjs",
+    "mcp": "node tools/linktk-mcp.mjs",
+    "test:mcp": "node tests/mcp.mjs",
+    "demo:mcp": "node tests/mcp-demo.mjs",
+    "test:coordination": "node tests/coordination.mjs",
+    "test:ssh": "node tests/ssh.mjs",
+    "test:ymodem": "node tests/ymodem.mjs",
+    "test:smoke": "node tests/smoke.mjs",
+    "test:i18n": "node tests/i18n.mjs",
+    "screenshots": "node tests/screenshots.mjs",
+    "test:probe": "python -m unittest tests/test_linktk_probe.py"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-search": "^0.16.0",
+    "@xterm/xterm": "^6.0.0",
+    "lucide": "^0.468.0",
+    "ssh2": "^1.17.0",
+    "ws": "^8.22.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.49.1",
+    "vite": "^6.1.0"
+  }
+}
